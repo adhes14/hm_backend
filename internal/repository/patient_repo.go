@@ -1,0 +1,91 @@
+package repository
+
+import (
+	"context"
+	"errors"
+
+	"github.com/hospital_management/backend/internal/domain"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+type patientRepo struct {
+	pool *pgxpool.Pool
+}
+
+func NewPatientRepository(pool *pgxpool.Pool) PatientRepository {
+	return &patientRepo{pool: pool}
+}
+
+func (r *patientRepo) Create(ctx context.Context, p *domain.Patient) error {
+	query := `
+		INSERT INTO patients (identity_number, full_name, birth_date, obstetric_history)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id`
+
+	return r.pool.QueryRow(ctx, query,
+		p.IdentityNumber, p.FullName, p.BirthDate, p.ObstetricHistory,
+	).Scan(&p.ID)
+}
+
+func (r *patientRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Patient, error) {
+	query := `
+		SELECT id, identity_number, full_name, birth_date, obstetric_history
+		FROM patients WHERE id = $1`
+
+	var p domain.Patient
+	err := r.pool.QueryRow(ctx, query, id).Scan(
+		&p.ID, &p.IdentityNumber, &p.FullName, &p.BirthDate, &p.ObstetricHistory)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrPatientNotFound
+		}
+		return nil, err
+	}
+	return &p, nil
+}
+
+func (r *patientRepo) GetByBedID(ctx context.Context, bedID int) (*domain.Patient, error) {
+	query := `
+		SELECT p.id, p.identity_number, p.full_name, p.birth_date, p.obstetric_history
+		FROM patients p
+		JOIN admissions a ON a.patient_id = p.id
+		WHERE a.bed_id = $1 AND a.status = 'active'`
+
+	var p domain.Patient
+	err := r.pool.QueryRow(ctx, query, bedID).Scan(
+		&p.ID, &p.IdentityNumber, &p.FullName, &p.BirthDate, &p.ObstetricHistory)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrPatientNotFound
+		}
+		return nil, err
+	}
+	return &p, nil
+}
+
+func (r *patientRepo) Search(ctx context.Context, query string) ([]domain.Patient, error) {
+	sql := `
+		SELECT id, identity_number, full_name, birth_date, obstetric_history
+		FROM patients
+		WHERE identity_number = $1 OR full_name ILIKE '%' || $1 || '%'
+		LIMIT 20`
+
+	rows, err := r.pool.Query(ctx, sql, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	patients := make([]domain.Patient, 0)
+	for rows.Next() {
+		var p domain.Patient
+		err := rows.Scan(&p.ID, &p.IdentityNumber, &p.FullName, &p.BirthDate, &p.ObstetricHistory)
+		if err != nil {
+			return nil, err
+		}
+		patients = append(patients, p)
+	}
+	return patients, rows.Err()
+}

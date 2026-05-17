@@ -1,0 +1,35 @@
+package domain
+
+import (
+    "time"
+
+    "github.com/google/uuid"
+)
+
+type AdmissionStatus string
+
+const (
+    AdmissionStatusActive     AdmissionStatus = "active"
+    AdmissionStatusDischarged AdmissionStatus = "discharged"
+)
+
+type EventType string
+
+const (
+    EventTypeParto    EventType = "parto"
+    EventTypeCesarea  EventType = "cesarea"
+    EventTypeNinguno  EventType = "ninguno"
+)
+
+type Admission struct {
+    ID                   uuid.UUID       `json:"id"`
+    PatientID            uuid.UUID       `json:"patient_id"`
+    BedID                int             `json:"bed_id"`
+    Status               AdmissionStatus `json:"status"`
+    EventType            EventType       `json:"event_type"`
+    EventAt              *time.Time      `json:"event_at"`
+    NextControlAt        *time.Time      `json:"next_control_at"`
+    EstimatedDischargeAt *time.Time      `json:"estimated_discharge_at"`
+    CreatedAt            time.Time       `json:"created_at"`
+    DischargedAt         *time.Time      `json:"discharged_at"`
+}

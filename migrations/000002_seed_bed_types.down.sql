@@ -1,0 +1,1 @@
+DELETE FROM bed_types WHERE prefix IN ('ARO', 'M');

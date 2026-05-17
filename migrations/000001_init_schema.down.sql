@@ -1,0 +1,7 @@
+DROP TABLE IF EXISTS admissions;
+DROP TABLE IF EXISTS patients;
+DROP TABLE IF EXISTS beds;
+DROP TABLE IF EXISTS bed_types;
+DROP TYPE IF EXISTS event_type_enum;
+DROP TYPE IF EXISTS admission_status_enum;
+DROP EXTENSION IF EXISTS pg_trgm;
