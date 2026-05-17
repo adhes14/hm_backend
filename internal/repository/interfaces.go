@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hospital_management/backend/internal/domain"
+	"github.com/jackc/pgx/v5"
 )
 
 type BedRepository interface {
@@ -27,4 +28,11 @@ type AdmissionRepository interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.Admission, error)
 	GetActiveByBedID(ctx context.Context, bedID int) (*domain.Admission, error)
 	Discharge(ctx context.Context, id uuid.UUID) error
+	GetByIDForUpdate(ctx context.Context, tx pgx.Tx, id uuid.UUID) (*domain.Admission, error)
+}
+
+type ClinicalLogRepository interface {
+	Create(ctx context.Context, tx pgx.Tx, log *domain.ClinicalLog) error
+	ListByAdmission(ctx context.Context, admissionID uuid.UUID) ([]domain.ClinicalLog, error)
+	CountByAdmission(ctx context.Context, tx pgx.Tx, admissionID uuid.UUID) (int, error)
 }

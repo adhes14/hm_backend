@@ -84,3 +84,23 @@ func (r *admissionRepo) Discharge(ctx context.Context, id uuid.UUID) error {
 	}
 	return nil
 }
+
+func (r *admissionRepo) GetByIDForUpdate(ctx context.Context, tx pgx.Tx, id uuid.UUID) (*domain.Admission, error) {
+	query := `
+		SELECT id, patient_id, bed_id, status, event_type, event_at,
+		       next_control_at, estimated_discharge_at, created_at, discharged_at
+		FROM admissions WHERE id = $1 FOR UPDATE`
+
+	var a domain.Admission
+	err := tx.QueryRow(ctx, query, id).Scan(
+		&a.ID, &a.PatientID, &a.BedID, &a.Status, &a.EventType,
+		&a.EventAt, &a.NextControlAt, &a.EstimatedDischargeAt,
+		&a.CreatedAt, &a.DischargedAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrAdmissionNotFound
+		}
+		return nil, err
+	}
+	return &a, nil
+}

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -29,6 +30,15 @@ func NewAdmissionService(
 		bedRepo:      bedRepo,
 		patientRepo:  patientRepo,
 	}
+}
+
+// GetByID returns a single admission by ID
+func (s *AdmissionService) GetByID(ctx context.Context, id uuid.UUID) (*domain.Admission, error) {
+	admission, err := s.admissionRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, domain.ErrAdmissionNotFound
+	}
+	return admission, nil
 }
 
 // CreateAdmission assigns a patient to an available bed
@@ -137,4 +147,59 @@ func (s *AdmissionService) DischargeAdmission(ctx context.Context, admissionID u
 	}
 
 	return tx.Commit(ctx)
+}
+
+// RegisterEvent registers a birth event (parto or cesarea) on an admission
+func (s *AdmissionService) RegisterEvent(ctx context.Context, admissionID uuid.UUID, eventType domain.EventType) (*domain.Admission, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	admission, err := s.admissionRepo.GetByIDForUpdate(ctx, tx, admissionID)
+	if err != nil {
+		return nil, err
+	}
+
+	if admission.Status != domain.AdmissionStatusActive {
+		return nil, domain.ErrAdmissionNotActive
+	}
+
+	if admission.EventAt != nil {
+		return nil, domain.ErrEventAlreadyRegistered
+	}
+
+	if eventType != domain.EventTypeParto && eventType != domain.EventTypeCesarea {
+		return nil, fmt.Errorf("invalid event_type: %s", eventType)
+	}
+
+	now := time.Now()
+	var estimatedDischargeAt time.Time
+	switch eventType {
+	case domain.EventTypeParto:
+		estimatedDischargeAt = now.Add(24 * time.Hour)
+	case domain.EventTypeCesarea:
+		estimatedDischargeAt = now.Add(48 * time.Hour)
+	}
+
+	nextControlAt := now.Add(2 * time.Hour)
+
+	_, err = tx.Exec(ctx,
+		"UPDATE admissions SET event_at = $1, next_control_at = $2, estimated_discharge_at = $3, event_type = $4 WHERE id = $5",
+		now, nextControlAt, estimatedDischargeAt, eventType, admissionID)
+	if err != nil {
+		return nil, err
+	}
+
+	admission.EventAt = &now
+	admission.NextControlAt = &nextControlAt
+	admission.EstimatedDischargeAt = &estimatedDischargeAt
+	admission.EventType = eventType
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+
+	return admission, nil
 }

@@ -78,3 +78,69 @@ func (h *AdmissionHandler) Discharge(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": "discharged"})
 }
+
+// GET /api/v1/admissions/{id}
+func (h *AdmissionHandler) Get(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid admission id")
+		return
+	}
+
+	admission, err := h.admissionService.GetByID(r.Context(), id)
+	if err != nil {
+		switch err {
+		case domain.ErrAdmissionNotFound:
+			writeError(w, http.StatusNotFound, "admission not found")
+		default:
+			writeError(w, http.StatusInternalServerError, "failed to get admission")
+		}
+		return
+	}
+
+	writeJSON(w, http.StatusOK, admission)
+}
+
+type registerEventRequest struct {
+	EventType string `json:"event_type"`
+}
+
+// PUT /api/v1/admissions/{id}/event
+func (h *AdmissionHandler) RegisterEvent(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid admission id")
+		return
+	}
+
+	var req registerEventRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if req.EventType != "parto" && req.EventType != "cesarea" {
+		writeError(w, http.StatusBadRequest, "invalid event_type")
+		return
+	}
+
+	eventType := domain.EventType(req.EventType)
+	admission, err := h.admissionService.RegisterEvent(r.Context(), id, eventType)
+	if err != nil {
+		switch err {
+		case domain.ErrAdmissionNotFound:
+			writeError(w, http.StatusNotFound, "admission not found")
+		case domain.ErrAdmissionNotActive:
+			writeError(w, http.StatusConflict, "admission is not active")
+		case domain.ErrEventAlreadyRegistered:
+			writeError(w, http.StatusConflict, "event already registered")
+		default:
+			writeError(w, http.StatusBadRequest, err.Error())
+		}
+		return
+	}
+
+	writeJSON(w, http.StatusOK, admission)
+}
