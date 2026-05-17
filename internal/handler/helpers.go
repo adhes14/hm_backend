@@ -3,6 +3,8 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+
+	"github.com/google/uuid"
 )
 
 func writeJSON(w http.ResponseWriter, status int, data interface{}) {
@@ -13,4 +15,8 @@ func writeJSON(w http.ResponseWriter, status int, data interface{}) {
 
 func writeError(w http.ResponseWriter, status int, message string) {
 	writeJSON(w, status, map[string]string{"error": message})
+}
+
+func parseUUID(s string) (uuid.UUID, error) {
+	return uuid.Parse(s)
 }

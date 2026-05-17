@@ -18,6 +18,8 @@ type PatientRepository interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.Patient, error)
 	GetByBedID(ctx context.Context, bedID int) (*domain.Patient, error)
 	Search(ctx context.Context, query string) ([]domain.Patient, error)
+	List(ctx context.Context, page, limit int) ([]domain.Patient, int, error)
+	Update(ctx context.Context, p *domain.Patient) error
 }
 
 type AdmissionRepository interface {

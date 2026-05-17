@@ -89,3 +89,57 @@ func (r *patientRepo) Search(ctx context.Context, query string) ([]domain.Patien
 	}
 	return patients, rows.Err()
 }
+
+func (r *patientRepo) List(ctx context.Context, page, limit int) ([]domain.Patient, int, error) {
+	offset := (page - 1) * limit
+
+	// Get total count
+	var total int
+	err := r.pool.QueryRow(ctx, "SELECT COUNT(*) FROM patients").Scan(&total)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Get paginated results
+	sql := `
+		SELECT id, identity_number, full_name, birth_date, obstetric_history
+		FROM patients
+		ORDER BY full_name ASC
+		LIMIT $1 OFFSET $2`
+
+	rows, err := r.pool.Query(ctx, sql, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	patients := make([]domain.Patient, 0)
+	for rows.Next() {
+		var p domain.Patient
+		err := rows.Scan(&p.ID, &p.IdentityNumber, &p.FullName, &p.BirthDate, &p.ObstetricHistory)
+		if err != nil {
+			return nil, 0, err
+		}
+		patients = append(patients, p)
+	}
+	return patients, total, rows.Err()
+}
+
+func (r *patientRepo) Update(ctx context.Context, p *domain.Patient) error {
+	sql := `
+		UPDATE patients
+		SET identity_number = $1, full_name = $2, birth_date = $3, obstetric_history = $4
+		WHERE id = $5`
+
+	result, err := r.pool.Exec(ctx, sql,
+		p.IdentityNumber, p.FullName, p.BirthDate, p.ObstetricHistory, p.ID,
+	)
+	if err != nil {
+		return err
+	}
+
+	if result.RowsAffected() == 0 {
+		return domain.ErrPatientNotFound
+	}
+	return nil
+}
