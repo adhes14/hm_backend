@@ -183,17 +183,16 @@ func (s *AdmissionService) RegisterEvent(ctx context.Context, admissionID uuid.U
 		estimatedDischargeAt = now.Add(48 * time.Hour)
 	}
 
-	nextControlAt := now.Add(2 * time.Hour)
-
+	// Note: RegisterEvent only sets estimated_discharge_at, NOT next_control_at
+	// First clinical log is what starts the follow-up chain
 	_, err = tx.Exec(ctx,
-		"UPDATE admissions SET event_at = $1, next_control_at = $2, estimated_discharge_at = $3, event_type = $4 WHERE id = $5",
-		now, nextControlAt, estimatedDischargeAt, eventType, admissionID)
+		"UPDATE admissions SET event_at = $1, estimated_discharge_at = $2, event_type = $3 WHERE id = $4",
+		now, estimatedDischargeAt, eventType, admissionID)
 	if err != nil {
 		return nil, err
 	}
 
 	admission.EventAt = &now
-	admission.NextControlAt = &nextControlAt
 	admission.EstimatedDischargeAt = &estimatedDischargeAt
 	admission.EventType = eventType
 

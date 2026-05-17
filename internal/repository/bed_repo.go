@@ -19,7 +19,7 @@ func NewBedRepository(pool *pgxpool.Pool) BedRepository {
 func (r *bedRepo) GetAll(ctx context.Context) ([]domain.Bed, error) {
 	query := `
 		SELECT b.id, b.number, b.is_active, b.current_admission_id,
-		       bt.id, bt.name, bt.prefix
+		       bt.id, bt.name, bt.prefix, bt.requires_postpartum_followup
 		FROM beds b
 		LEFT JOIN bed_types bt ON b.bed_type_id = bt.id
 		ORDER BY b.number`
@@ -35,7 +35,7 @@ func (r *bedRepo) GetAll(ctx context.Context) ([]domain.Bed, error) {
 		var b domain.Bed
 		var bt domain.BedType
 		err := rows.Scan(&b.ID, &b.Number, &b.IsActive, &b.CurrentAdmissionID,
-			&bt.ID, &bt.Name, &bt.Prefix)
+			&bt.ID, &bt.Name, &bt.Prefix, &bt.RequiresPostpartumFollowup)
 		if err != nil {
 			return nil, err
 		}
@@ -48,7 +48,7 @@ func (r *bedRepo) GetAll(ctx context.Context) ([]domain.Bed, error) {
 func (r *bedRepo) GetByID(ctx context.Context, id int) (*domain.Bed, error) {
 	query := `
 		SELECT b.id, b.number, b.is_active, b.current_admission_id,
-		       bt.id, bt.name, bt.prefix
+		       bt.id, bt.name, bt.prefix, bt.requires_postpartum_followup
 		FROM beds b
 		LEFT JOIN bed_types bt ON b.bed_type_id = bt.id
 		WHERE b.id = $1`
@@ -57,7 +57,7 @@ func (r *bedRepo) GetByID(ctx context.Context, id int) (*domain.Bed, error) {
 	var bt domain.BedType
 	err := r.pool.QueryRow(ctx, query, id).Scan(
 		&b.ID, &b.Number, &b.IsActive, &b.CurrentAdmissionID,
-		&bt.ID, &bt.Name, &bt.Prefix)
+		&bt.ID, &bt.Name, &bt.Prefix, &bt.RequiresPostpartumFollowup)
 	if err != nil {
 		return nil, err
 	}
@@ -70,4 +70,35 @@ func (r *bedRepo) UpdateCurrentAdmission(ctx context.Context, bedID int, admissi
 		"UPDATE beds SET current_admission_id = $1 WHERE id = $2",
 		admissionID, bedID)
 	return err
+}
+
+func (r *bedRepo) CreateBed(ctx context.Context, bed *domain.Bed) error {
+	query := `
+		INSERT INTO beds (number, bed_type_id, is_active)
+		VALUES ($1, $2, $3)
+		RETURNING id`
+
+	return r.pool.QueryRow(ctx, query, bed.Number, bed.BedType.ID, bed.IsActive).Scan(&bed.ID)
+}
+
+func (r *bedRepo) UpdateBed(ctx context.Context, bed *domain.Bed) error {
+	query := `
+		UPDATE beds
+		SET number = $1, bed_type_id = $2
+		WHERE id = $3`
+
+	_, err := r.pool.Exec(ctx, query, bed.Number, bed.BedType.ID, bed.ID)
+	return err
+}
+
+func (r *bedRepo) DeleteBed(ctx context.Context, id int) error {
+	_, err := r.pool.Exec(ctx, "DELETE FROM beds WHERE id = $1", id)
+	return err
+}
+
+func (r *bedRepo) CountByBedTypeID(ctx context.Context, bedTypeID int) (int, error) {
+	var count int
+	err := r.pool.QueryRow(ctx,
+		"SELECT COUNT(*) FROM beds WHERE bed_type_id = $1", bedTypeID).Scan(&count)
+	return count, err
 }

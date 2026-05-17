@@ -14,4 +14,6 @@ var (
 	ErrControlWindowComplete = errors.New("monitoring complete")
 	ErrEventAlreadyRegistered = errors.New("event already registered")
 	ErrEventRequired         = errors.New("event must be registered before creating clinical logs")
+	ErrBedTypeInUse          = errors.New("bed type has assigned beds")
+	ErrBedOccupied           = errors.New("bed is occupied")
 )

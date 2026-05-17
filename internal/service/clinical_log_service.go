@@ -15,13 +15,20 @@ type ClinicalLogService struct {
 	pool            *pgxpool.Pool
 	clinicalLogRepo repository.ClinicalLogRepository
 	admissionRepo   repository.AdmissionRepository
+	bedRepo         repository.BedRepository
 }
 
-func NewClinicalLogService(pool *pgxpool.Pool, clinicalLogRepo repository.ClinicalLogRepository, admissionRepo repository.AdmissionRepository) *ClinicalLogService {
+func NewClinicalLogService(
+	pool *pgxpool.Pool,
+	clinicalLogRepo repository.ClinicalLogRepository,
+	admissionRepo repository.AdmissionRepository,
+	bedRepo repository.BedRepository,
+) *ClinicalLogService {
 	return &ClinicalLogService{
 		pool:            pool,
 		clinicalLogRepo: clinicalLogRepo,
 		admissionRepo:   admissionRepo,
+		bedRepo:         bedRepo,
 	}
 }
 
@@ -57,8 +64,10 @@ func (s *ClinicalLogService) CreateClinicalLog(ctx context.Context, admissionID 
 		return nil, err
 	}
 
-	if admission.EventAt == nil {
-		return nil, domain.ErrEventRequired
+	// Load bed to check requires_postpartum_followup
+	bed, err := s.bedRepo.GetByID(ctx, admission.BedID)
+	if err != nil {
+		return nil, err
 	}
 
 	count, err := s.clinicalLogRepo.CountByAdmission(ctx, tx, admissionID)
@@ -66,6 +75,7 @@ func (s *ClinicalLogService) CreateClinicalLog(ctx context.Context, admissionID 
 		return nil, err
 	}
 
+	// Check if monitoring is already complete (8+ logs)
 	if count >= 8 {
 		return nil, domain.ErrControlWindowComplete
 	}
@@ -74,7 +84,11 @@ func (s *ClinicalLogService) CreateClinicalLog(ctx context.Context, admissionID 
 		return nil, err
 	}
 
-	nextControlAt := CalculateNextControlAt(count+1, time.Now())
+	// Calculate next_control_at only if bed requires postpartum follow-up
+	var nextControlAt *time.Time
+	if bed.BedType != nil && bed.BedType.RequiresPostpartumFollowup {
+		nextControlAt = CalculateNextControlAt(count+1, time.Now())
+	}
 
 	log := &domain.ClinicalLog{
 		AdmissionID:  admissionID,
@@ -96,9 +110,12 @@ func (s *ClinicalLogService) CreateClinicalLog(ctx context.Context, admissionID 
 		return nil, err
 	}
 
-	_, err = tx.Exec(ctx, "UPDATE admissions SET next_control_at = $1 WHERE id = $2", nextControlAt, admissionID)
-	if err != nil {
-		return nil, err
+	// Update next_control_at only if it should be set
+	if nextControlAt != nil {
+		_, err = tx.Exec(ctx, "UPDATE admissions SET next_control_at = $1 WHERE id = $2", nextControlAt, admissionID)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if err := tx.Commit(ctx); err != nil {

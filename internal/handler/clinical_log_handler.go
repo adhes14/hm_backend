@@ -72,8 +72,6 @@ func (h *ClinicalLogHandler) Create(w http.ResponseWriter, r *http.Request) {
 		switch err {
 		case domain.ErrAdmissionNotFound:
 			writeError(w, http.StatusNotFound, "admission not found")
-		case domain.ErrEventRequired:
-			writeError(w, http.StatusBadRequest, "event must be registered before creating clinical logs")
 		case domain.ErrControlWindowComplete:
 			writeError(w, http.StatusConflict, "monitoring complete")
 		case domain.ErrInvalidVitalSign:

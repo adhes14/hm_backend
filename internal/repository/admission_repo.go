@@ -104,3 +104,24 @@ func (r *admissionRepo) GetByIDForUpdate(ctx context.Context, tx pgx.Tx, id uuid
 	}
 	return &a, nil
 }
+
+func (r *admissionRepo) GetByBedID(ctx context.Context, bedID int) (*domain.Admission, error) {
+	query := `
+		SELECT id, patient_id, bed_id, status, event_type, event_at,
+		       next_control_at, estimated_discharge_at, created_at, discharged_at
+		FROM admissions
+		WHERE bed_id = $1`
+
+	var a domain.Admission
+	err := r.pool.QueryRow(ctx, query, bedID).Scan(
+		&a.ID, &a.PatientID, &a.BedID, &a.Status, &a.EventType,
+		&a.EventAt, &a.NextControlAt, &a.EstimatedDischargeAt,
+		&a.CreatedAt, &a.DischargedAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &a, nil
+}
