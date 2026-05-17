@@ -126,6 +126,29 @@ func (h *PatientHandler) Search(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, patients)
 }
 
+// GET /api/v1/patients/{id}
+func (h *PatientHandler) Get(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := parseUUID(idStr)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid patient id")
+		return
+	}
+
+	patient, err := h.patientService.GetPatientByID(r.Context(), id)
+	if err != nil {
+		switch err {
+		case domain.ErrPatientNotFound:
+			writeError(w, http.StatusNotFound, "patient not found")
+		default:
+			writeError(w, http.StatusInternalServerError, "failed to retrieve patient")
+		}
+		return
+	}
+
+	writeJSON(w, http.StatusOK, patient)
+}
+
 // PUT /api/v1/patients/{id}
 func (h *PatientHandler) Update(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
