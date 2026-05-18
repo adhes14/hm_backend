@@ -51,3 +51,12 @@ type ClinicalLogRepository interface {
 	ListByAdmission(ctx context.Context, admissionID uuid.UUID) ([]domain.ClinicalLog, error)
 	CountByAdmission(ctx context.Context, tx pgx.Tx, admissionID uuid.UUID) (int, error)
 }
+
+type StaffRepository interface {
+	Create(ctx context.Context, staff *domain.Staff) error
+	GetByID(ctx context.Context, id uuid.UUID) (*domain.Staff, error)
+	GetByUsername(ctx context.Context, username string) (*domain.Staff, error)
+	List(ctx context.Context) ([]domain.Staff, error)
+	UpdatePassword(ctx context.Context, id uuid.UUID, hash string) error
+	SetActive(ctx context.Context, id uuid.UUID, active bool) error
+}

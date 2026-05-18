@@ -33,6 +33,7 @@ func NewClinicalLogService(
 }
 
 type CreateClinicalLogInput struct {
+	CreatedBy    *uuid.UUID
 	PaSystolic   int16
 	PaDiastolic  int16
 	HeartRate    int16
@@ -92,6 +93,7 @@ func (s *ClinicalLogService) CreateClinicalLog(ctx context.Context, admissionID 
 
 	log := &domain.ClinicalLog{
 		AdmissionID:  admissionID,
+		CreatedBy:    input.CreatedBy,
 		PaSystolic:   input.PaSystolic,
 		PaDiastolic:  input.PaDiastolic,
 		HeartRate:    input.HeartRate,

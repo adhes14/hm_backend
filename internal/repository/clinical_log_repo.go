@@ -36,12 +36,13 @@ func (r *clinicalLogRepo) Create(ctx context.Context, tx pgx.Tx, log *domain.Cli
 
 func (r *clinicalLogRepo) ListByAdmission(ctx context.Context, admissionID uuid.UUID) ([]domain.ClinicalLog, error) {
 	query := `
-		SELECT id, admission_id, created_by, created_at,
-			pa_systolic, pa_diastolic, heart_rate, resp_rate, temperature, spo2,
-			pinard_status, lochia_type, lochia_amount, lochia_odor, has_clots, notes
-		FROM clinical_logs
-		WHERE admission_id = $1
-		ORDER BY created_at ASC`
+		SELECT cl.id, cl.admission_id, cl.created_by, s.full_name as created_by_name, cl.created_at,
+			cl.pa_systolic, cl.pa_diastolic, cl.heart_rate, cl.resp_rate, cl.temperature, cl.spo2,
+			cl.pinard_status, cl.lochia_type, cl.lochia_amount, cl.lochia_odor, cl.has_clots, cl.notes
+		FROM clinical_logs cl
+		LEFT JOIN staff s ON cl.created_by = s.id
+		WHERE cl.admission_id = $1
+		ORDER BY cl.created_at ASC`
 
 	rows, err := r.pool.Query(ctx, query, admissionID)
 	if err != nil {
@@ -53,7 +54,7 @@ func (r *clinicalLogRepo) ListByAdmission(ctx context.Context, admissionID uuid.
 	for rows.Next() {
 		var log domain.ClinicalLog
 		err := rows.Scan(
-			&log.ID, &log.AdmissionID, &log.CreatedBy, &log.CreatedAt,
+			&log.ID, &log.AdmissionID, &log.CreatedBy, &log.CreatedByName, &log.CreatedAt,
 			&log.PaSystolic, &log.PaDiastolic, &log.HeartRate, &log.RespRate,
 			&log.Temperature, &log.Spo2, &log.PinardStatus, &log.LochiaType,
 			&log.LochiaAmount, &log.LochiaOdor, &log.HasClots, &log.Notes,

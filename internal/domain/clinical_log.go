@@ -7,22 +7,23 @@ import (
 )
 
 type ClinicalLog struct {
-	ID           int64      `json:"id"`
-	AdmissionID  uuid.UUID  `json:"admission_id"`
-	CreatedBy    *uuid.UUID `json:"created_by"`
-	CreatedAt    time.Time  `json:"created_at"`
-	PaSystolic   int16      `json:"pa_systolic"`
-	PaDiastolic  int16      `json:"pa_diastolic"`
-	HeartRate    int16      `json:"heart_rate"`
-	RespRate     int16      `json:"resp_rate"`
-	Temperature  float32    `json:"temperature"`
-	Spo2         int16      `json:"spo2"`
-	PinardStatus bool       `json:"pinard_status"`
-	LochiaType   int16      `json:"lochia_type"`   // 1=Rubra, 2=Serosa, 3=Alba
-	LochiaAmount int16      `json:"lochia_amount"` // 1=Escaso, 2=Moderado, 3=Abundante
-	LochiaOdor   bool       `json:"lochia_odor"`    // true=Normal, false=Fetido
-	HasClots     bool       `json:"has_clots"`
-	Notes        *string    `json:"notes,omitempty"`
+	ID             int64      `json:"id"`
+	AdmissionID    uuid.UUID  `json:"admission_id"`
+	CreatedBy      *uuid.UUID `json:"created_by"`
+	CreatedByName  *string    `json:"created_by_name,omitempty"`
+	CreatedAt      time.Time  `json:"created_at"`
+	PaSystolic     int16      `json:"pa_systolic"`
+	PaDiastolic    int16      `json:"pa_diastolic"`
+	HeartRate      int16      `json:"heart_rate"`
+	RespRate       int16      `json:"resp_rate"`
+	Temperature    float32    `json:"temperature"`
+	Spo2           int16      `json:"spo2"`
+	PinardStatus   bool       `json:"pinard_status"`
+	LochiaType     int16      `json:"lochia_type"`   // 1=Rubra, 2=Serosa, 3=Alba
+	LochiaAmount   int16      `json:"lochia_amount"` // 1=Escaso, 2=Moderado, 3=Abundante
+	LochiaOdor     bool       `json:"lochia_odor"`    // true=Normal, false=Fetido
+	HasClots       bool       `json:"has_clots"`
+	Notes          *string    `json:"notes,omitempty"`
 }
 
 // Lochia type constants

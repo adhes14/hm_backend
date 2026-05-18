@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/hospital_management/backend/internal/domain"
+	"github.com/hospital_management/backend/internal/middleware"
 	"github.com/hospital_management/backend/internal/service"
 )
 
@@ -52,7 +53,11 @@ func (h *ClinicalLogHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	claims := middleware.GetUserFromContext(r.Context())
+	userID := claims.StaffID
+
 	input := &service.CreateClinicalLogInput{
+		CreatedBy:    &userID,
 		PaSystolic:   req.PaSystolic,
 		PaDiastolic:  req.PaDiastolic,
 		HeartRate:    req.HeartRate,
