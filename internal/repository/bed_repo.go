@@ -19,9 +19,12 @@ func NewBedRepository(pool *pgxpool.Pool) BedRepository {
 func (r *bedRepo) GetAll(ctx context.Context) ([]domain.Bed, error) {
 	query := `
 		SELECT b.id, b.number, b.is_active, b.current_admission_id,
-		       bt.id, bt.name, bt.prefix, bt.requires_postpartum_followup
+		       bt.id, bt.name, bt.prefix, bt.requires_postpartum_followup,
+		       p.full_name
 		FROM beds b
 		LEFT JOIN bed_types bt ON b.bed_type_id = bt.id
+		LEFT JOIN admissions a ON b.current_admission_id = a.id
+		LEFT JOIN patients p ON a.patient_id = p.id
 		ORDER BY b.number`
 
 	rows, err := r.pool.Query(ctx, query)
@@ -35,7 +38,8 @@ func (r *bedRepo) GetAll(ctx context.Context) ([]domain.Bed, error) {
 		var b domain.Bed
 		var bt domain.BedType
 		err := rows.Scan(&b.ID, &b.Number, &b.IsActive, &b.CurrentAdmissionID,
-			&bt.ID, &bt.Name, &bt.Prefix, &bt.RequiresPostpartumFollowup)
+			&bt.ID, &bt.Name, &bt.Prefix, &bt.RequiresPostpartumFollowup,
+			&b.CurrentPatientName)
 		if err != nil {
 			return nil, err
 		}
@@ -48,16 +52,20 @@ func (r *bedRepo) GetAll(ctx context.Context) ([]domain.Bed, error) {
 func (r *bedRepo) GetByID(ctx context.Context, id int) (*domain.Bed, error) {
 	query := `
 		SELECT b.id, b.number, b.is_active, b.current_admission_id,
-		       bt.id, bt.name, bt.prefix, bt.requires_postpartum_followup
+		       bt.id, bt.name, bt.prefix, bt.requires_postpartum_followup,
+		       p.full_name
 		FROM beds b
 		LEFT JOIN bed_types bt ON b.bed_type_id = bt.id
+		LEFT JOIN admissions a ON b.current_admission_id = a.id
+		LEFT JOIN patients p ON a.patient_id = p.id
 		WHERE b.id = $1`
 
 	var b domain.Bed
 	var bt domain.BedType
 	err := r.pool.QueryRow(ctx, query, id).Scan(
 		&b.ID, &b.Number, &b.IsActive, &b.CurrentAdmissionID,
-		&bt.ID, &bt.Name, &bt.Prefix, &bt.RequiresPostpartumFollowup)
+		&bt.ID, &bt.Name, &bt.Prefix, &bt.RequiresPostpartumFollowup,
+		&b.CurrentPatientName)
 	if err != nil {
 		return nil, err
 	}

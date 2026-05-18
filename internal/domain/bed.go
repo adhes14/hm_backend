@@ -7,6 +7,7 @@ type Bed struct {
     BedType            *BedType   `json:"bed_type,omitempty"`
     Number             int        `json:"number"`
     CurrentAdmissionID *uuid.UUID `json:"current_admission_id"`
+    CurrentPatientName *string    `json:"current_patient_name,omitempty"`
     IsActive           bool       `json:"is_active"`
 }
 
