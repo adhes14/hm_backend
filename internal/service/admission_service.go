@@ -125,7 +125,7 @@ func (s *AdmissionService) DischargeAdmission(ctx context.Context, admissionID u
 	defer tx.Rollback(ctx)
 
 	// Update admission status
-	now := time.Now()
+	now := time.Now().UTC()
 	updateAdmission := `
 		UPDATE admissions
 		SET status = 'discharged', discharged_at = $1
@@ -174,7 +174,7 @@ func (s *AdmissionService) RegisterEvent(ctx context.Context, admissionID uuid.U
 		return nil, fmt.Errorf("invalid event_type: %s", eventType)
 	}
 
-	now := time.Now()
+	now := time.Now().UTC()
 	var estimatedDischargeAt time.Time
 	switch eventType {
 	case domain.EventTypeParto:

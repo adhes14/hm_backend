@@ -72,7 +72,7 @@ func (r *admissionRepo) GetActiveByBedID(ctx context.Context, bedID int) (*domai
 }
 
 func (r *admissionRepo) Discharge(ctx context.Context, id uuid.UUID) error {
-	now := time.Now()
+	now := time.Now().UTC()
 	tag, err := r.pool.Exec(ctx,
 		"UPDATE admissions SET status = 'discharged', discharged_at = $1 WHERE id = $2 AND status = 'active'",
 		now, id)

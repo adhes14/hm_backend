@@ -87,7 +87,7 @@ func (s *ClinicalLogService) CreateClinicalLog(ctx context.Context, admissionID 
 	// Calculate next_control_at only if bed requires postpartum follow-up
 	var nextControlAt *time.Time
 	if bed.BedType != nil && bed.BedType.RequiresPostpartumFollowup {
-		nextControlAt = CalculateNextControlAt(count+1, time.Now())
+		nextControlAt = CalculateNextControlAt(count+1, time.Now().UTC())
 	}
 
 	log := &domain.ClinicalLog{
