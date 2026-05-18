@@ -1,0 +1,30 @@
+# Ignore git directory and local configurations
+.git
+.gitignore
+.dockerignore
+docker-compose.yml
+
+# Ignore Docker files themselves (not needed inside the container build)
+Dockerfile
+
+# Do NOT copy precompiled local binaries
+server
+check_hash
+test_db
+*.exe
+*.test
+out/
+
+# Do NOT copy local secrets or environment files
+.env
+.env.*
+*.local
+secrets/
+
+# Ignore IDE and editor configurations
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

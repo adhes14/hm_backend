@@ -9,14 +9,17 @@ import (
 )
 
 func NewPool(ctx context.Context) (*pgxpool.Pool, error) {
-	connStr := fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s",
-		getEnv("POSTGRES_USER", "hospital"),
-		getEnv("POSTGRES_PASSWORD", "hospital_pass"),
-		getEnv("POSTGRES_HOST", "localhost"),
-		getEnv("POSTGRES_PORT", "5432"),
-		getEnv("POSTGRES_DB", "hospital_db"),
-	)
+	connStr := os.Getenv("DATABASE_URL")
+	if connStr == "" {
+		connStr = fmt.Sprintf(
+			"postgres://%s:%s@%s:%s/%s",
+			getEnv("POSTGRES_USER", "hospital"),
+			getEnv("POSTGRES_PASSWORD", "hospital_pass"),
+			getEnv("POSTGRES_HOST", "localhost"),
+			getEnv("POSTGRES_PORT", "5432"),
+			getEnv("POSTGRES_DB", "hospital_db"),
+		)
+	}
 
 	config, err := pgxpool.ParseConfig(connStr)
 	if err != nil {

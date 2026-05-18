@@ -10,10 +10,27 @@ services:
     volumes:
       - hospital_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U hospital -d hospital_db"]
+      test: [ "CMD-SHELL", "pg_isready -U hospital -d hospital_db" ]
       interval: 5s
       timeout: 5s
       retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - GO_ENV=development
+      - DATABASE_URL=postgres://hospital:hospital_pass@postgres:5432/hospital_db?sslmode=disable
+      - RUN_MIGRATIONS=true
+      - ALLOWED_ORIGINS=http://localhost:5173
+      - JWT_SECRET=mi_secreto
+    depends_on:
+      postgres:
+        condition: service_healthy
 
 volumes:
   hospital_pgdata:
