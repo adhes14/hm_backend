@@ -20,7 +20,8 @@ func (r *bedRepo) GetAll(ctx context.Context) ([]domain.Bed, error) {
 	query := `
 		SELECT b.id, b.number, b.is_active, b.current_admission_id,
 		       bt.id, bt.name, bt.prefix, bt.requires_postpartum_followup,
-		       p.full_name
+		       p.full_name, a.next_control_at, a.estimated_discharge_at, a.event_type,
+		       COALESCE((SELECT COUNT(*) FROM clinical_logs WHERE admission_id = a.id), 0)
 		FROM beds b
 		LEFT JOIN bed_types bt ON b.bed_type_id = bt.id
 		LEFT JOIN admissions a ON b.current_admission_id = a.id
@@ -39,7 +40,8 @@ func (r *bedRepo) GetAll(ctx context.Context) ([]domain.Bed, error) {
 		var bt domain.BedType
 		err := rows.Scan(&b.ID, &b.Number, &b.IsActive, &b.CurrentAdmissionID,
 			&bt.ID, &bt.Name, &bt.Prefix, &bt.RequiresPostpartumFollowup,
-			&b.CurrentPatientName)
+			&b.CurrentPatientName, &b.NextControlAt, &b.EstimatedDischargeAt, &b.EventType,
+			&b.ControlCount)
 		if err != nil {
 			return nil, err
 		}
@@ -53,7 +55,8 @@ func (r *bedRepo) GetByID(ctx context.Context, id int) (*domain.Bed, error) {
 	query := `
 		SELECT b.id, b.number, b.is_active, b.current_admission_id,
 		       bt.id, bt.name, bt.prefix, bt.requires_postpartum_followup,
-		       p.full_name
+		       p.full_name, a.next_control_at, a.estimated_discharge_at, a.event_type,
+		       COALESCE((SELECT COUNT(*) FROM clinical_logs WHERE admission_id = a.id), 0)
 		FROM beds b
 		LEFT JOIN bed_types bt ON b.bed_type_id = bt.id
 		LEFT JOIN admissions a ON b.current_admission_id = a.id
@@ -65,7 +68,8 @@ func (r *bedRepo) GetByID(ctx context.Context, id int) (*domain.Bed, error) {
 	err := r.pool.QueryRow(ctx, query, id).Scan(
 		&b.ID, &b.Number, &b.IsActive, &b.CurrentAdmissionID,
 		&bt.ID, &bt.Name, &bt.Prefix, &bt.RequiresPostpartumFollowup,
-		&b.CurrentPatientName)
+		&b.CurrentPatientName, &b.NextControlAt, &b.EstimatedDischargeAt, &b.EventType,
+		&b.ControlCount)
 	if err != nil {
 		return nil, err
 	}

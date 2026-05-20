@@ -38,14 +38,22 @@ func main() {
 	admissionRepo := repository.NewAdmissionRepository(pool)
 	clinicalLogRepo := repository.NewClinicalLogRepository(pool)
 	staffRepo := repository.NewStaffRepository(pool)
+	sseTicketRepo := repository.NewSSETicketRepository(pool)
+	settingsRepo := repository.NewSettingsRepository(pool)
 
 	// Services
+	sseService := service.NewSSEService(pool, sseTicketRepo, settingsRepo)
 	bedService := service.NewBedService(bedRepo, patientRepo, admissionRepo)
 	bedTypeService := service.NewBedTypeService(bedTypeRepo)
 	patientService := service.NewPatientService(patientRepo)
-	admissionService := service.NewAdmissionService(pool, admissionRepo, bedRepo, patientRepo)
-	clinicalLogService := service.NewClinicalLogService(pool, clinicalLogRepo, admissionRepo, bedRepo)
+	admissionService := service.NewAdmissionService(pool, admissionRepo, bedRepo, patientRepo, sseService)
+	clinicalLogService := service.NewClinicalLogService(pool, clinicalLogRepo, admissionRepo, bedRepo, sseService)
 	authService := service.NewAuthService(staffRepo)
+
+	// Background Worker
+	workerCtx, workerCancel := context.WithCancel(context.Background())
+	defer workerCancel()
+	go sseService.StartWorker(workerCtx)
 
 	// Handlers
 	bedHandler := handler.NewBedHandler(bedService)
@@ -55,6 +63,8 @@ func main() {
 	clinicalLogHandler := handler.NewClinicalLogHandler(clinicalLogService, admissionService)
 	authHandler := handler.NewAuthHandler(authService)
 	staffHandler := handler.NewStaffHandler(authService)
+	sseHandler := handler.NewSSEHandler(sseService)
+	settingsHandler := handler.NewSettingsHandler(sseService)
 
 	// Router
 	r := chi.NewRouter()
@@ -97,10 +107,18 @@ func main() {
 	
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Post("/auth/login", authHandler.Login)
+		r.Get("/events", sseHandler.StreamEvents)
 
 		// Protected Routes
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.Authenticate)
+
+			r.Post("/auth/sse-ticket", sseHandler.CreateTicket)
+
+			r.Route("/settings", func(r chi.Router) {
+				r.Get("/", settingsHandler.GetSettings)
+				r.With(middleware.RequireRole(domain.RoleAdmin)).Put("/", settingsHandler.UpdateSettings)
+			})
 
 			r.Route("/beds", func(r chi.Router) {
 				r.Get("/", bedHandler.GetAll)

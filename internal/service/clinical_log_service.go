@@ -16,6 +16,7 @@ type ClinicalLogService struct {
 	clinicalLogRepo repository.ClinicalLogRepository
 	admissionRepo   repository.AdmissionRepository
 	bedRepo         repository.BedRepository
+	sseService      SSEService
 }
 
 func NewClinicalLogService(
@@ -23,12 +24,14 @@ func NewClinicalLogService(
 	clinicalLogRepo repository.ClinicalLogRepository,
 	admissionRepo repository.AdmissionRepository,
 	bedRepo repository.BedRepository,
+	sseService SSEService,
 ) *ClinicalLogService {
 	return &ClinicalLogService{
 		pool:            pool,
 		clinicalLogRepo: clinicalLogRepo,
 		admissionRepo:   admissionRepo,
 		bedRepo:         bedRepo,
+		sseService:      sseService,
 	}
 }
 
@@ -112,17 +115,29 @@ func (s *ClinicalLogService) CreateClinicalLog(ctx context.Context, admissionID 
 		return nil, err
 	}
 
-	// Update next_control_at only if it should be set
-	if nextControlAt != nil {
-		_, err = tx.Exec(ctx, "UPDATE admissions SET next_control_at = $1 WHERE id = $2", nextControlAt, admissionID)
-		if err != nil {
-			return nil, err
-		}
+	// Update next_control_at (this sets it to NULL if nextControlAt is nil)
+	_, err = tx.Exec(ctx, "UPDATE admissions SET next_control_at = $1 WHERE id = $2", nextControlAt, admissionID)
+	if err != nil {
+		return nil, err
 	}
 
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
+
+	// Broadcast bed update and clear alert
+	s.sseService.Broadcast(domain.SSEEvent{
+		Type: "bed_updated",
+		Data: map[string]interface{}{
+			"bed_id": admission.BedID,
+		},
+	})
+	s.sseService.Broadcast(domain.SSEEvent{
+		Type: "alert_cleared",
+		Data: map[string]interface{}{
+			"admission_id": admissionID.String(),
+		},
+	})
 
 	return &CreateClinicalLogResponse{
 		Log:           log,

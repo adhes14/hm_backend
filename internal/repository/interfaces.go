@@ -60,3 +60,15 @@ type StaffRepository interface {
 	UpdatePassword(ctx context.Context, id uuid.UUID, hash string) error
 	SetActive(ctx context.Context, id uuid.UUID, active bool) error
 }
+
+type SettingsRepository interface {
+	GetByKey(ctx context.Context, key string) (*domain.SystemSetting, error)
+	GetAll(ctx context.Context) ([]domain.SystemSetting, error)
+	Update(ctx context.Context, key string, value string) error
+}
+
+type SSETicketRepository interface {
+	Create(ctx context.Context, ticket *domain.SSETicket) error
+	ValidateAndConsume(ctx context.Context, ticketStr string) (*domain.SSETicket, error)
+	DeleteExpired(ctx context.Context) error
+}

@@ -12,10 +12,11 @@ import (
 )
 
 type AdmissionService struct {
-	pool         *pgxpool.Pool
+	pool          *pgxpool.Pool
 	admissionRepo repository.AdmissionRepository
-	bedRepo      repository.BedRepository
-	patientRepo  repository.PatientRepository
+	bedRepo       repository.BedRepository
+	patientRepo   repository.PatientRepository
+	sseService    SSEService
 }
 
 func NewAdmissionService(
@@ -23,12 +24,14 @@ func NewAdmissionService(
 	admissionRepo repository.AdmissionRepository,
 	bedRepo repository.BedRepository,
 	patientRepo repository.PatientRepository,
+	sseService SSEService,
 ) *AdmissionService {
 	return &AdmissionService{
-		pool:         pool,
+		pool:          pool,
 		admissionRepo: admissionRepo,
-		bedRepo:      bedRepo,
-		patientRepo:  patientRepo,
+		bedRepo:       bedRepo,
+		patientRepo:   patientRepo,
+		sseService:    sseService,
 	}
 }
 
@@ -100,6 +103,15 @@ func (s *AdmissionService) CreateAdmission(ctx context.Context, patientID uuid.U
 		return nil, err
 	}
 
+	// Broadcast bed update
+	s.sseService.Broadcast(domain.SSEEvent{
+		Type: "bed_updated",
+		Data: map[string]interface{}{
+			"bed_id": bedID,
+			"action": "admitted",
+		},
+	})
+
 	return admission, nil
 }
 
@@ -146,7 +158,26 @@ func (s *AdmissionService) DischargeAdmission(ctx context.Context, admissionID u
 		return err
 	}
 
-	return tx.Commit(ctx)
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+
+	// Broadcast bed update and clear alert
+	s.sseService.Broadcast(domain.SSEEvent{
+		Type: "bed_updated",
+		Data: map[string]interface{}{
+			"bed_id": admission.BedID,
+			"action": "discharged",
+		},
+	})
+	s.sseService.Broadcast(domain.SSEEvent{
+		Type: "alert_cleared",
+		Data: map[string]interface{}{
+			"admission_id": admissionID.String(),
+		},
+	})
+
+	return nil
 }
 
 // RegisterEvent registers a birth event (parto or cesarea) on an admission
@@ -199,6 +230,14 @@ func (s *AdmissionService) RegisterEvent(ctx context.Context, admissionID uuid.U
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
+
+	// Broadcast bed update
+	s.sseService.Broadcast(domain.SSEEvent{
+		Type: "bed_updated",
+		Data: map[string]interface{}{
+			"bed_id": admission.BedID,
+		},
+	})
 
 	return admission, nil
 }
