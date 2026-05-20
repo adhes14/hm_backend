@@ -71,6 +71,27 @@ func (r *admissionRepo) GetActiveByBedID(ctx context.Context, bedID int) (*domai
 	return &a, nil
 }
 
+func (r *admissionRepo) GetActiveByPatientID(ctx context.Context, patientID uuid.UUID) (*domain.Admission, error) {
+	query := `
+		SELECT id, patient_id, bed_id, status, event_type, event_at,
+		       next_control_at, estimated_discharge_at, created_at, discharged_at
+		FROM admissions
+		WHERE patient_id = $1 AND status = 'active'`
+
+	var a domain.Admission
+	err := r.pool.QueryRow(ctx, query, patientID).Scan(
+		&a.ID, &a.PatientID, &a.BedID, &a.Status, &a.EventType,
+		&a.EventAt, &a.NextControlAt, &a.EstimatedDischargeAt,
+		&a.CreatedAt, &a.DischargedAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil // No active admission for this patient
+		}
+		return nil, err
+	}
+	return &a, nil
+}
+
 func (r *admissionRepo) Discharge(ctx context.Context, id uuid.UUID) error {
 	now := time.Now().UTC()
 	tag, err := r.pool.Exec(ctx,

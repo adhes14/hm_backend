@@ -52,6 +52,15 @@ func (s *AdmissionService) CreateAdmission(ctx context.Context, patientID uuid.U
 		return nil, domain.ErrPatientNotFound
 	}
 
+	// Verify patient doesn't have an active admission
+	activeAdmission, err := s.admissionRepo.GetActiveByPatientID(ctx, patientID)
+	if err != nil {
+		return nil, err
+	}
+	if activeAdmission != nil {
+		return nil, domain.ErrPatientAlreadyAdmitted
+	}
+
 	// Verify bed exists
 	bed, err := s.bedRepo.GetByID(ctx, bedID)
 	if err != nil {

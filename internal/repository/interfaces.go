@@ -41,6 +41,7 @@ type AdmissionRepository interface {
 	Create(ctx context.Context, a *domain.Admission) error
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.Admission, error)
 	GetActiveByBedID(ctx context.Context, bedID int) (*domain.Admission, error)
+	GetActiveByPatientID(ctx context.Context, patientID uuid.UUID) (*domain.Admission, error)
 	Discharge(ctx context.Context, id uuid.UUID) error
 	GetByIDForUpdate(ctx context.Context, tx pgx.Tx, id uuid.UUID) (*domain.Admission, error)
 	GetByBedID(ctx context.Context, bedID int) (*domain.Admission, error)

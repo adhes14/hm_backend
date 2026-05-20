@@ -31,12 +31,15 @@ func (r *patientRepo) Create(ctx context.Context, p *domain.Patient) error {
 
 func (r *patientRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Patient, error) {
 	query := `
-		SELECT id, identity_number, full_name, birth_date, obstetric_history
-		FROM patients WHERE id = $1`
+		SELECT p.id, p.identity_number, p.full_name, p.birth_date, p.obstetric_history,
+		       EXISTS (SELECT 1 FROM admissions a WHERE a.patient_id = p.id AND a.status = 'active') AS is_admitted,
+		       (SELECT a.id FROM admissions a WHERE a.patient_id = p.id AND a.status = 'active' LIMIT 1) AS current_admission_id
+		FROM patients p WHERE p.id = $1`
 
 	var p domain.Patient
 	err := r.pool.QueryRow(ctx, query, id).Scan(
-		&p.ID, &p.IdentityNumber, &p.FullName, &p.BirthDate, &p.ObstetricHistory)
+		&p.ID, &p.IdentityNumber, &p.FullName, &p.BirthDate, &p.ObstetricHistory,
+		&p.IsAdmitted, &p.CurrentAdmissionID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, domain.ErrPatientNotFound
@@ -48,14 +51,17 @@ func (r *patientRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Patien
 
 func (r *patientRepo) GetByBedID(ctx context.Context, bedID int) (*domain.Patient, error) {
 	query := `
-		SELECT p.id, p.identity_number, p.full_name, p.birth_date, p.obstetric_history
+		SELECT p.id, p.identity_number, p.full_name, p.birth_date, p.obstetric_history,
+		       true AS is_admitted,
+		       a.id AS current_admission_id
 		FROM patients p
 		JOIN admissions a ON a.patient_id = p.id
 		WHERE a.bed_id = $1 AND a.status = 'active'`
 
 	var p domain.Patient
 	err := r.pool.QueryRow(ctx, query, bedID).Scan(
-		&p.ID, &p.IdentityNumber, &p.FullName, &p.BirthDate, &p.ObstetricHistory)
+		&p.ID, &p.IdentityNumber, &p.FullName, &p.BirthDate, &p.ObstetricHistory,
+		&p.IsAdmitted, &p.CurrentAdmissionID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, domain.ErrPatientNotFound
@@ -67,9 +73,11 @@ func (r *patientRepo) GetByBedID(ctx context.Context, bedID int) (*domain.Patien
 
 func (r *patientRepo) Search(ctx context.Context, query string) ([]domain.Patient, error) {
 	sql := `
-		SELECT id, identity_number, full_name, birth_date, obstetric_history
-		FROM patients
-		WHERE identity_number = $1 OR full_name ILIKE '%' || $1 || '%'
+		SELECT p.id, p.identity_number, p.full_name, p.birth_date, p.obstetric_history,
+		       EXISTS (SELECT 1 FROM admissions a WHERE a.patient_id = p.id AND a.status = 'active') AS is_admitted,
+		       (SELECT a.id FROM admissions a WHERE a.patient_id = p.id AND a.status = 'active' LIMIT 1) AS current_admission_id
+		FROM patients p
+		WHERE p.identity_number = $1 OR p.full_name ILIKE '%' || $1 || '%'
 		LIMIT 20`
 
 	rows, err := r.pool.Query(ctx, sql, query)
@@ -81,7 +89,8 @@ func (r *patientRepo) Search(ctx context.Context, query string) ([]domain.Patien
 	patients := make([]domain.Patient, 0)
 	for rows.Next() {
 		var p domain.Patient
-		err := rows.Scan(&p.ID, &p.IdentityNumber, &p.FullName, &p.BirthDate, &p.ObstetricHistory)
+		err := rows.Scan(&p.ID, &p.IdentityNumber, &p.FullName, &p.BirthDate, &p.ObstetricHistory,
+			&p.IsAdmitted, &p.CurrentAdmissionID)
 		if err != nil {
 			return nil, err
 		}
@@ -102,9 +111,11 @@ func (r *patientRepo) List(ctx context.Context, page, limit int) ([]domain.Patie
 
 	// Get paginated results
 	sql := `
-		SELECT id, identity_number, full_name, birth_date, obstetric_history
-		FROM patients
-		ORDER BY full_name ASC
+		SELECT p.id, p.identity_number, p.full_name, p.birth_date, p.obstetric_history,
+		       EXISTS (SELECT 1 FROM admissions a WHERE a.patient_id = p.id AND a.status = 'active') AS is_admitted,
+		       (SELECT a.id FROM admissions a WHERE a.patient_id = p.id AND a.status = 'active' LIMIT 1) AS current_admission_id
+		FROM patients p
+		ORDER BY p.full_name ASC
 		LIMIT $1 OFFSET $2`
 
 	rows, err := r.pool.Query(ctx, sql, limit, offset)
@@ -116,7 +127,8 @@ func (r *patientRepo) List(ctx context.Context, page, limit int) ([]domain.Patie
 	patients := make([]domain.Patient, 0)
 	for rows.Next() {
 		var p domain.Patient
-		err := rows.Scan(&p.ID, &p.IdentityNumber, &p.FullName, &p.BirthDate, &p.ObstetricHistory)
+		err := rows.Scan(&p.ID, &p.IdentityNumber, &p.FullName, &p.BirthDate, &p.ObstetricHistory,
+			&p.IsAdmitted, &p.CurrentAdmissionID)
 		if err != nil {
 			return nil, 0, err
 		}

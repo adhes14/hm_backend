@@ -46,6 +46,8 @@ func (h *AdmissionHandler) Create(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, "bed not found")
 		case domain.ErrBedNotAvailable:
 			writeError(w, http.StatusConflict, "bed is not available")
+		case domain.ErrPatientAlreadyAdmitted:
+			writeError(w, http.StatusConflict, "patient is already admitted")
 		default:
 			writeError(w, http.StatusInternalServerError, "failed to create admission")
 		}
