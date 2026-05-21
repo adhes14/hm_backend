@@ -40,6 +40,7 @@ func main() {
 	staffRepo := repository.NewStaffRepository(pool)
 	sseTicketRepo := repository.NewSSETicketRepository(pool)
 	settingsRepo := repository.NewSettingsRepository(pool)
+	orderRepo := repository.NewAuxiliaryOrderRepository(pool)
 
 	// Services
 	sseService := service.NewSSEService(pool, sseTicketRepo, settingsRepo)
@@ -49,6 +50,7 @@ func main() {
 	admissionService := service.NewAdmissionService(pool, admissionRepo, bedRepo, patientRepo, sseService)
 	clinicalLogService := service.NewClinicalLogService(pool, clinicalLogRepo, admissionRepo, bedRepo, sseService)
 	authService := service.NewAuthService(staffRepo)
+	orderService := service.NewAuxiliaryOrderService(orderRepo, sseService)
 
 	// Background Worker
 	workerCtx, workerCancel := context.WithCancel(context.Background())
@@ -65,6 +67,7 @@ func main() {
 	staffHandler := handler.NewStaffHandler(authService)
 	sseHandler := handler.NewSSEHandler(sseService)
 	settingsHandler := handler.NewSettingsHandler(sseService)
+	orderHandler := handler.NewAuxiliaryOrderHandler(orderService)
 
 	// Router
 	r := chi.NewRouter()
@@ -160,6 +163,14 @@ func main() {
 				r.Put("/{id}/event", admissionHandler.RegisterEvent)
 				r.Post("/{id}/clinical-logs", clinicalLogHandler.Create)
 				r.Get("/{id}/clinical-logs", clinicalLogHandler.List)
+				r.Post("/{id}/orders", orderHandler.Create)
+				r.Get("/{id}/orders", orderHandler.ListByAdmission)
+			})
+
+			r.Route("/orders", func(r chi.Router) {
+				r.Get("/pending", orderHandler.ListPending)
+				r.Put("/{id}/status", orderHandler.UpdateStatus)
+				r.With(middleware.RequireRole(domain.RoleAdmin)).Delete("/{id}", orderHandler.Delete)
 			})
 
 			r.Route("/users", func(r chi.Router) {

@@ -112,12 +112,22 @@ func (s *AdmissionService) CreateAdmission(ctx context.Context, patientID uuid.U
 		return nil, err
 	}
 
+	// Read sound setting
+	sound := false
+	settings, err := s.sseService.GetSettings(ctx)
+	if err == nil {
+		if val, ok := settings["sound_alert_patient_admitted"]; ok && val == "true" {
+			sound = true
+		}
+	}
+
 	// Broadcast bed update
 	s.sseService.Broadcast(domain.SSEEvent{
 		Type: "bed_updated",
 		Data: map[string]interface{}{
 			"bed_id": bedID,
 			"action": "admitted",
+			"sound":  sound,
 		},
 	})
 
@@ -171,12 +181,22 @@ func (s *AdmissionService) DischargeAdmission(ctx context.Context, admissionID u
 		return err
 	}
 
+	// Read sound setting
+	sound := false
+	settings, err := s.sseService.GetSettings(ctx)
+	if err == nil {
+		if val, ok := settings["sound_alert_patient_discharged"]; ok && val == "true" {
+			sound = true
+		}
+	}
+
 	// Broadcast bed update and clear alert
 	s.sseService.Broadcast(domain.SSEEvent{
 		Type: "bed_updated",
 		Data: map[string]interface{}{
 			"bed_id": admission.BedID,
 			"action": "discharged",
+			"sound":  sound,
 		},
 	})
 	s.sseService.Broadcast(domain.SSEEvent{

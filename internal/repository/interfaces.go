@@ -47,6 +47,14 @@ type AdmissionRepository interface {
 	GetByBedID(ctx context.Context, bedID int) (*domain.Admission, error)
 }
 
+type AuxiliaryOrderRepository interface {
+	Create(ctx context.Context, order *domain.AuxiliaryOrder) error
+	GetByAdmission(ctx context.Context, admissionID uuid.UUID) ([]domain.AuxiliaryOrder, error)
+	GetAllPending(ctx context.Context) ([]domain.AuxiliaryOrder, error)
+	UpdateStatus(ctx context.Context, id int64, status domain.OrderStatus, updatedBy *uuid.UUID) error
+	Delete(ctx context.Context, id int64) error
+}
+
 type ClinicalLogRepository interface {
 	Create(ctx context.Context, tx pgx.Tx, log *domain.ClinicalLog) error
 	ListByAdmission(ctx context.Context, admissionID uuid.UUID) ([]domain.ClinicalLog, error)

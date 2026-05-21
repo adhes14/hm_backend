@@ -17,4 +17,7 @@ var (
 	ErrBedTypeInUse          = errors.New("bed type has assigned beds")
 	ErrBedOccupied           = errors.New("bed is occupied")
 	ErrPatientAlreadyAdmitted = errors.New("patient is already admitted")
+	ErrOrderNotFound          = errors.New("auxiliary order not found")
+	ErrOrderNotPending        = errors.New("order is not pending")
+	ErrInvalidStatusTransition = errors.New("invalid status transition")
 )
