@@ -33,13 +33,16 @@ func (r *patientRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Patien
 	query := `
 		SELECT p.id, p.identity_number, p.full_name, p.birth_date, p.obstetric_history,
 		       EXISTS (SELECT 1 FROM admissions a WHERE a.patient_id = p.id AND a.status = 'active') AS is_admitted,
-		       (SELECT a.id FROM admissions a WHERE a.patient_id = p.id AND a.status = 'active' LIMIT 1) AS current_admission_id
-		FROM patients p WHERE p.id = $1`
+		       (SELECT a.id FROM admissions a WHERE a.patient_id = p.id AND a.status = 'active' LIMIT 1) AS current_admission_id,
+		       s.scheduled_at
+		FROM patients p
+		LEFT JOIN surgical_schedules s ON s.patient_id = p.id
+		WHERE p.id = $1`
 
 	var p domain.Patient
 	err := r.pool.QueryRow(ctx, query, id).Scan(
 		&p.ID, &p.IdentityNumber, &p.FullName, &p.BirthDate, &p.ObstetricHistory,
-		&p.IsAdmitted, &p.CurrentAdmissionID)
+		&p.IsAdmitted, &p.CurrentAdmissionID, &p.ScheduledAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, domain.ErrPatientNotFound
@@ -75,8 +78,10 @@ func (r *patientRepo) Search(ctx context.Context, query string) ([]domain.Patien
 	sql := `
 		SELECT p.id, p.identity_number, p.full_name, p.birth_date, p.obstetric_history,
 		       EXISTS (SELECT 1 FROM admissions a WHERE a.patient_id = p.id AND a.status = 'active') AS is_admitted,
-		       (SELECT a.id FROM admissions a WHERE a.patient_id = p.id AND a.status = 'active' LIMIT 1) AS current_admission_id
+		       (SELECT a.id FROM admissions a WHERE a.patient_id = p.id AND a.status = 'active' LIMIT 1) AS current_admission_id,
+		       s.scheduled_at
 		FROM patients p
+		LEFT JOIN surgical_schedules s ON s.patient_id = p.id
 		WHERE p.identity_number = $1 OR p.full_name ILIKE '%' || $1 || '%'
 		LIMIT 20`
 
@@ -90,7 +95,7 @@ func (r *patientRepo) Search(ctx context.Context, query string) ([]domain.Patien
 	for rows.Next() {
 		var p domain.Patient
 		err := rows.Scan(&p.ID, &p.IdentityNumber, &p.FullName, &p.BirthDate, &p.ObstetricHistory,
-			&p.IsAdmitted, &p.CurrentAdmissionID)
+			&p.IsAdmitted, &p.CurrentAdmissionID, &p.ScheduledAt)
 		if err != nil {
 			return nil, err
 		}
@@ -113,8 +118,10 @@ func (r *patientRepo) List(ctx context.Context, page, limit int) ([]domain.Patie
 	sql := `
 		SELECT p.id, p.identity_number, p.full_name, p.birth_date, p.obstetric_history,
 		       EXISTS (SELECT 1 FROM admissions a WHERE a.patient_id = p.id AND a.status = 'active') AS is_admitted,
-		       (SELECT a.id FROM admissions a WHERE a.patient_id = p.id AND a.status = 'active' LIMIT 1) AS current_admission_id
+		       (SELECT a.id FROM admissions a WHERE a.patient_id = p.id AND a.status = 'active' LIMIT 1) AS current_admission_id,
+		       s.scheduled_at
 		FROM patients p
+		LEFT JOIN surgical_schedules s ON s.patient_id = p.id
 		ORDER BY p.full_name ASC
 		LIMIT $1 OFFSET $2`
 
@@ -128,7 +135,7 @@ func (r *patientRepo) List(ctx context.Context, page, limit int) ([]domain.Patie
 	for rows.Next() {
 		var p domain.Patient
 		err := rows.Scan(&p.ID, &p.IdentityNumber, &p.FullName, &p.BirthDate, &p.ObstetricHistory,
-			&p.IsAdmitted, &p.CurrentAdmissionID)
+			&p.IsAdmitted, &p.CurrentAdmissionID, &p.ScheduledAt)
 		if err != nil {
 			return nil, 0, err
 		}

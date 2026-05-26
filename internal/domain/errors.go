@@ -20,4 +20,7 @@ var (
 	ErrOrderNotFound          = errors.New("auxiliary order not found")
 	ErrOrderNotPending        = errors.New("order is not pending")
 	ErrInvalidStatusTransition = errors.New("invalid status transition")
+	ErrScheduleNotFound       = errors.New("surgical schedule not found")
+	ErrPatientAlreadyScheduled = errors.New("patient already has a surgical schedule")
 )
+

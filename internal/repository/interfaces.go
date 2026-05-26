@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/hospital_management/backend/internal/domain"
@@ -81,4 +82,14 @@ type SSETicketRepository interface {
 	Create(ctx context.Context, ticket *domain.SSETicket) error
 	ValidateAndConsume(ctx context.Context, ticketStr string) (*domain.SSETicket, error)
 	DeleteExpired(ctx context.Context) error
+}
+
+type SurgicalScheduleRepository interface {
+	Create(ctx context.Context, s *domain.SurgicalSchedule) error
+	GetByID(ctx context.Context, id uuid.UUID) (*domain.SurgicalSchedule, error)
+	GetByPatientID(ctx context.Context, patientID uuid.UUID) (*domain.SurgicalSchedule, error)
+	GetByDateRange(ctx context.Context, from, to time.Time) ([]domain.SurgicalSchedule, error)
+	Update(ctx context.Context, s *domain.SurgicalSchedule) error
+	Delete(ctx context.Context, id uuid.UUID) error
+	DeleteByPatientID(ctx context.Context, tx pgx.Tx, patientID uuid.UUID) error
 }

@@ -15,4 +15,6 @@ type Patient struct {
     ObstetricHistory   json.RawMessage `json:"obstetric_history"`
     IsAdmitted         bool            `json:"is_admitted"`
     CurrentAdmissionID *uuid.UUID      `json:"current_admission_id"`
+    ScheduledAt        *time.Time      `json:"scheduled_at,omitempty"`
 }
+

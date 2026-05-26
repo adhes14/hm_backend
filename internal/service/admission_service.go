@@ -12,11 +12,12 @@ import (
 )
 
 type AdmissionService struct {
-	pool          *pgxpool.Pool
-	admissionRepo repository.AdmissionRepository
-	bedRepo       repository.BedRepository
-	patientRepo   repository.PatientRepository
-	sseService    SSEService
+	pool                 *pgxpool.Pool
+	admissionRepo        repository.AdmissionRepository
+	bedRepo              repository.BedRepository
+	patientRepo          repository.PatientRepository
+	surgicalScheduleRepo repository.SurgicalScheduleRepository
+	sseService           SSEService
 }
 
 func NewAdmissionService(
@@ -24,14 +25,16 @@ func NewAdmissionService(
 	admissionRepo repository.AdmissionRepository,
 	bedRepo repository.BedRepository,
 	patientRepo repository.PatientRepository,
+	surgicalScheduleRepo repository.SurgicalScheduleRepository,
 	sseService SSEService,
 ) *AdmissionService {
 	return &AdmissionService{
-		pool:          pool,
-		admissionRepo: admissionRepo,
-		bedRepo:       bedRepo,
-		patientRepo:   patientRepo,
-		sseService:    sseService,
+		pool:                 pool,
+		admissionRepo:        admissionRepo,
+		bedRepo:              bedRepo,
+		patientRepo:          patientRepo,
+		surgicalScheduleRepo: surgicalScheduleRepo,
+		sseService:           sseService,
 	}
 }
 
@@ -106,6 +109,11 @@ func (s *AdmissionService) CreateAdmission(ctx context.Context, patientID uuid.U
 	updateQuery := `UPDATE beds SET current_admission_id = $1 WHERE id = $2`
 	_, err = tx.Exec(ctx, updateQuery, admission.ID, bedID)
 	if err != nil {
+		return nil, err
+	}
+
+	// Delete any existing surgical schedule for this patient within the same transaction
+	if err := s.surgicalScheduleRepo.DeleteByPatientID(ctx, tx, patientID); err != nil {
 		return nil, err
 	}
 

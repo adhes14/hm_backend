@@ -41,16 +41,18 @@ func main() {
 	sseTicketRepo := repository.NewSSETicketRepository(pool)
 	settingsRepo := repository.NewSettingsRepository(pool)
 	orderRepo := repository.NewAuxiliaryOrderRepository(pool)
+	surgicalScheduleRepo := repository.NewSurgicalScheduleRepository(pool)
 
 	// Services
 	sseService := service.NewSSEService(pool, sseTicketRepo, settingsRepo)
 	bedService := service.NewBedService(bedRepo, patientRepo, admissionRepo)
 	bedTypeService := service.NewBedTypeService(bedTypeRepo)
 	patientService := service.NewPatientService(patientRepo)
-	admissionService := service.NewAdmissionService(pool, admissionRepo, bedRepo, patientRepo, sseService)
+	admissionService := service.NewAdmissionService(pool, admissionRepo, bedRepo, patientRepo, surgicalScheduleRepo, sseService)
 	clinicalLogService := service.NewClinicalLogService(pool, clinicalLogRepo, admissionRepo, bedRepo, sseService)
 	authService := service.NewAuthService(staffRepo)
 	orderService := service.NewAuxiliaryOrderService(orderRepo, sseService)
+	surgicalScheduleService := service.NewSurgicalScheduleService(surgicalScheduleRepo, patientRepo)
 
 	// Background Worker
 	workerCtx, workerCancel := context.WithCancel(context.Background())
@@ -68,6 +70,7 @@ func main() {
 	sseHandler := handler.NewSSEHandler(sseService)
 	settingsHandler := handler.NewSettingsHandler(sseService)
 	orderHandler := handler.NewAuxiliaryOrderHandler(orderService)
+	surgicalScheduleHandler := handler.NewSurgicalScheduleHandler(surgicalScheduleService)
 
 	// Router
 	r := chi.NewRouter()
@@ -172,6 +175,15 @@ func main() {
 				r.Get("/pending", orderHandler.ListPending)
 				r.Put("/{id}/status", orderHandler.UpdateStatus)
 				r.With(middleware.RequireRole(domain.RoleAdmin)).Delete("/{id}", orderHandler.Delete)
+			})
+
+			r.Route("/surgical-schedules", func(r chi.Router) {
+				r.Post("/", surgicalScheduleHandler.Create)
+				r.Get("/", surgicalScheduleHandler.ListByMonth)
+				r.Get("/date", surgicalScheduleHandler.ListByDate)
+				r.Get("/patient/{patientId}", surgicalScheduleHandler.GetByPatientID)
+				r.Put("/{id}", surgicalScheduleHandler.Update)
+				r.Delete("/{id}", surgicalScheduleHandler.Delete)
 			})
 
 			r.Route("/users", func(r chi.Router) {
