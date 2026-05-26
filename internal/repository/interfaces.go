@@ -45,6 +45,7 @@ type AdmissionRepository interface {
 	Discharge(ctx context.Context, id uuid.UUID) error
 	GetByIDForUpdate(ctx context.Context, tx pgx.Tx, id uuid.UUID) (*domain.Admission, error)
 	GetByBedID(ctx context.Context, bedID int) (*domain.Admission, error)
+	UpdateDiagnosis(ctx context.Context, id uuid.UUID, diagnosis string, updatedBy uuid.UUID) error
 }
 
 type AuxiliaryOrderRepository interface {

@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/hospital_management/backend/internal/domain"
+	"github.com/hospital_management/backend/internal/middleware"
 	"github.com/hospital_management/backend/internal/service"
 	"github.com/google/uuid"
 )
@@ -19,8 +20,13 @@ func NewAdmissionHandler(admissionService *service.AdmissionService) *AdmissionH
 }
 
 type createAdmissionRequest struct {
-	PatientID string `json:"patient_id"`
-	BedID     int    `json:"bed_id"`
+	PatientID          string `json:"patient_id"`
+	BedID              int    `json:"bed_id"`
+	AdmissionDiagnosis string `json:"admission_diagnosis"`
+}
+
+type updateDiagnosisRequest struct {
+	CurrentDiagnosis string `json:"current_diagnosis"`
 }
 
 // POST /api/v1/admissions
@@ -37,7 +43,7 @@ func (h *AdmissionHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	admission, err := h.admissionService.CreateAdmission(r.Context(), patientID, req.BedID)
+	admission, err := h.admissionService.CreateAdmission(r.Context(), patientID, req.BedID, req.AdmissionDiagnosis)
 	if err != nil {
 		switch err {
 		case domain.ErrPatientNotFound:
@@ -79,6 +85,40 @@ func (h *AdmissionHandler) Discharge(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": "discharged"})
+}
+
+// PUT /api/v1/admissions/{id}/diagnosis
+func (h *AdmissionHandler) UpdateDiagnosis(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid admission id")
+		return
+	}
+
+	var req updateDiagnosisRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	claims := middleware.GetUserFromContext(r.Context())
+	staffID := claims.StaffID
+
+	admission, err := h.admissionService.UpdateDiagnosis(r.Context(), id, req.CurrentDiagnosis, staffID)
+	if err != nil {
+		switch err {
+		case domain.ErrAdmissionNotFound:
+			writeError(w, http.StatusNotFound, "admission not found")
+		case domain.ErrAdmissionNotActive:
+			writeError(w, http.StatusConflict, "admission is not active")
+		default:
+			writeError(w, http.StatusInternalServerError, "failed to update diagnosis")
+		}
+		return
+	}
+
+	writeJSON(w, http.StatusOK, admission)
 }
 
 // GET /api/v1/admissions/{id}

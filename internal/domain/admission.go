@@ -32,4 +32,8 @@ type Admission struct {
     EstimatedDischargeAt *time.Time      `json:"estimated_discharge_at"`
     CreatedAt            time.Time       `json:"created_at"`
     DischargedAt         *time.Time      `json:"discharged_at"`
+    AdmissionDiagnosis           string     `json:"admission_diagnosis"`
+    CurrentDiagnosis             string     `json:"current_diagnosis"`
+    CurrentDiagnosisUpdatedBy    *uuid.UUID `json:"current_diagnosis_updated_by"`
+    CurrentDiagnosisUpdatedByName string     `json:"current_diagnosis_updated_by_name"`
 }
