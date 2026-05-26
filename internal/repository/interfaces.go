@@ -47,6 +47,7 @@ type AdmissionRepository interface {
 	GetByIDForUpdate(ctx context.Context, tx pgx.Tx, id uuid.UUID) (*domain.Admission, error)
 	GetByBedID(ctx context.Context, bedID int) (*domain.Admission, error)
 	UpdateDiagnosis(ctx context.Context, id uuid.UUID, diagnosis string, updatedBy uuid.UUID) error
+	GetAllByPatientID(ctx context.Context, patientID uuid.UUID) ([]domain.Admission, error)
 }
 
 type AuxiliaryOrderRepository interface {

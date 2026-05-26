@@ -47,6 +47,15 @@ func (s *AdmissionService) GetByID(ctx context.Context, id uuid.UUID) (*domain.A
 	return admission, nil
 }
 
+// GetByPatientID returns all admissions for a patient
+func (s *AdmissionService) GetByPatientID(ctx context.Context, patientID uuid.UUID) ([]domain.Admission, error) {
+	if _, err := s.patientRepo.GetByID(ctx, patientID); err != nil {
+		return nil, domain.ErrPatientNotFound
+	}
+	return s.admissionRepo.GetAllByPatientID(ctx, patientID)
+}
+
+
 // CreateAdmission assigns a patient to an available bed
 // Uses a transaction to ensure atomicity
 func (s *AdmissionService) CreateAdmission(ctx context.Context, patientID uuid.UUID, bedID int, admissionDiagnosis string) (*domain.Admission, error) {

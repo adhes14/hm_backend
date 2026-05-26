@@ -184,3 +184,39 @@ func (r *admissionRepo) GetByBedID(ctx context.Context, bedID int) (*domain.Admi
 	}
 	return &a, nil
 }
+
+func (r *admissionRepo) GetAllByPatientID(ctx context.Context, patientID uuid.UUID) ([]domain.Admission, error) {
+	query := `
+		SELECT a.id, a.patient_id, a.bed_id, a.status, a.event_type, a.event_at,
+		       a.next_control_at, a.estimated_discharge_at, a.created_at, a.discharged_at,
+		       a.admission_diagnosis, a.current_diagnosis, a.current_diagnosis_updated_by,
+		       COALESCE(s.full_name, '') as current_diagnosis_updated_by_name
+		FROM admissions a
+		LEFT JOIN staff s ON a.current_diagnosis_updated_by = s.id
+		WHERE a.patient_id = $1
+		ORDER BY a.created_at DESC`
+
+	rows, err := r.pool.Query(ctx, query, patientID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var admissions []domain.Admission
+	for rows.Next() {
+		var a domain.Admission
+		err := rows.Scan(
+			&a.ID, &a.PatientID, &a.BedID, &a.Status, &a.EventType,
+			&a.EventAt, &a.NextControlAt, &a.EstimatedDischargeAt,
+			&a.CreatedAt, &a.DischargedAt, &a.AdmissionDiagnosis, &a.CurrentDiagnosis,
+			&a.CurrentDiagnosisUpdatedBy, &a.CurrentDiagnosisUpdatedByName)
+		if err != nil {
+			return nil, err
+		}
+		admissions = append(admissions, a)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return admissions, nil
+}

@@ -157,6 +157,7 @@ func main() {
 				r.Get("/search", patientHandler.Search)
 				r.Get("/{id}", patientHandler.Get)
 				r.Put("/{id}", patientHandler.Update)
+				r.Get("/{id}/admissions", admissionHandler.ListByPatientID)
 			})
 
 			r.Route("/admissions", func(r chi.Router) {

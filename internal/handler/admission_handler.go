@@ -186,3 +186,30 @@ func (h *AdmissionHandler) RegisterEvent(w http.ResponseWriter, r *http.Request)
 
 	writeJSON(w, http.StatusOK, admission)
 }
+
+// GET /api/v1/patients/{id}/admissions
+func (h *AdmissionHandler) ListByPatientID(w http.ResponseWriter, r *http.Request) {
+	patientIDStr := chi.URLParam(r, "id")
+	patientID, err := uuid.Parse(patientIDStr)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid patient id")
+		return
+	}
+
+	admissions, err := h.admissionService.GetByPatientID(r.Context(), patientID)
+	if err != nil {
+		switch err {
+		case domain.ErrPatientNotFound:
+			writeError(w, http.StatusNotFound, "patient not found")
+		default:
+			writeError(w, http.StatusInternalServerError, "failed to get patient admissions")
+		}
+		return
+	}
+
+	if admissions == nil {
+		admissions = []domain.Admission{}
+	}
+
+	writeJSON(w, http.StatusOK, admissions)
+}
