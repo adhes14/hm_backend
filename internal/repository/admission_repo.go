@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/hospital_management/backend/internal/domain"
@@ -219,4 +220,87 @@ func (r *admissionRepo) GetAllByPatientID(ctx context.Context, patientID uuid.UU
 		return nil, err
 	}
 	return admissions, nil
+}
+
+func (r *admissionRepo) ListDischargedByBedIDWithDetails(
+	ctx context.Context,
+	bedID int,
+	from, to *time.Time,
+	page, limit int,
+) ([]domain.AdmissionWithDetails, int, error) {
+	offset := (page - 1) * limit
+
+	// Build dynamic WHERE clause and args
+	where := "WHERE a.bed_id = $1 AND a.status = 'discharged'"
+	countArgs := []interface{}{bedID}
+	queryArgs := []interface{}{bedID}
+	argIdx := 2
+
+	if from != nil {
+		where += fmt.Sprintf(" AND a.discharged_at >= $%d", argIdx)
+		countArgs = append(countArgs, *from)
+		queryArgs = append(queryArgs, *from)
+		argIdx++
+	}
+	if to != nil {
+		where += fmt.Sprintf(" AND a.discharged_at <= $%d", argIdx)
+		countArgs = append(countArgs, *to)
+		queryArgs = append(queryArgs, *to)
+		argIdx++
+	}
+
+	// Get total count
+	var total int
+	countQuery := "SELECT COUNT(*) FROM admissions a " + where
+	err := r.pool.QueryRow(ctx, countQuery, countArgs...).Scan(&total)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Get paginated results
+	dataQuery := fmt.Sprintf(`
+		SELECT a.id, a.patient_id, a.bed_id, a.status, a.event_type, a.event_at,
+		       a.next_control_at, a.estimated_discharge_at, a.created_at, a.discharged_at,
+		       a.admission_diagnosis, a.current_diagnosis, a.current_diagnosis_updated_by,
+		       COALESCE(s.full_name, '') as current_diagnosis_updated_by_name,
+		       COALESCE(p.full_name, '') as patient_name,
+		       COALESCE(p.identity_number, '') as patient_dni,
+		       (SELECT COUNT(*) FROM clinical_logs cl WHERE cl.admission_id = a.id) as clinical_log_count
+		FROM admissions a
+		LEFT JOIN staff s ON a.current_diagnosis_updated_by = s.id
+		LEFT JOIN patients p ON p.id = a.patient_id
+		%s
+		ORDER BY a.created_at DESC
+		LIMIT $%d OFFSET $%d`, where, argIdx, argIdx+1)
+
+	queryArgs = append(queryArgs, limit, offset)
+
+	rows, err := r.pool.Query(ctx, dataQuery, queryArgs...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var admissions []domain.AdmissionWithDetails
+	for rows.Next() {
+		var a domain.AdmissionWithDetails
+		err := rows.Scan(
+			&a.ID, &a.PatientID, &a.BedID, &a.Status, &a.EventType,
+			&a.EventAt, &a.NextControlAt, &a.EstimatedDischargeAt,
+			&a.CreatedAt, &a.DischargedAt, &a.AdmissionDiagnosis, &a.CurrentDiagnosis,
+			&a.CurrentDiagnosisUpdatedBy, &a.CurrentDiagnosisUpdatedByName,
+			&a.PatientName, &a.PatientDNI, &a.ClinicalLogCount)
+		if err != nil {
+			return nil, 0, err
+		}
+		admissions = append(admissions, a)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+	if admissions == nil {
+		admissions = []domain.AdmissionWithDetails{}
+	}
+
+	return admissions, total, nil
 }

@@ -60,7 +60,7 @@ func main() {
 	go sseService.StartWorker(workerCtx)
 
 	// Handlers
-	bedHandler := handler.NewBedHandler(bedService)
+	bedHandler := handler.NewBedHandler(bedService, admissionService)
 	bedTypeHandler := handler.NewBedTypeHandler(bedTypeService)
 	patientHandler := handler.NewPatientHandler(patientService)
 	admissionHandler := handler.NewAdmissionHandler(admissionService)
@@ -137,6 +137,7 @@ func main() {
 					r.Get("/", bedHandler.GetAll)
 					r.Get("/{id}", bedHandler.Get)
 					r.Get("/{id}/patient", bedHandler.GetPatient)
+					r.Get("/{id}/admissions", bedHandler.ListBedAdmissions)
 
 					r.Group(func(r chi.Router) {
 						r.Use(middleware.RequireRole(domain.RoleAdmin))

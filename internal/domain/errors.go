@@ -22,5 +22,6 @@ var (
 	ErrInvalidStatusTransition = errors.New("invalid status transition")
 	ErrScheduleNotFound       = errors.New("surgical schedule not found")
 	ErrPatientAlreadyScheduled = errors.New("patient already has a surgical schedule")
+	ErrInvalidDateRange        = errors.New("from date must not exceed to date")
 )
 

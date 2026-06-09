@@ -2,8 +2,10 @@ package handler
 
 import (
 	"encoding/json"
+	"math"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/hospital_management/backend/internal/domain"
@@ -11,11 +13,14 @@ import (
 )
 
 type BedHandler struct {
-	bedService *service.BedService
+	bedService       *service.BedService
+	admissionService *service.AdmissionService
 }
 
-func NewBedHandler(bedService *service.BedService) *BedHandler {
-	return &BedHandler{bedService: bedService}
+// NewBedHandler creates a BedHandler with the given services.
+// The second parameter (admissionService) was added for the bed history endpoint.
+func NewBedHandler(bedService *service.BedService, admissionService *service.AdmissionService) *BedHandler {
+	return &BedHandler{bedService: bedService, admissionService: admissionService}
 }
 
 type createBedRequest struct {
@@ -27,6 +32,14 @@ type createBedRequest struct {
 type updateBedRequest struct {
 	Number    *int `json:"number,omitempty"`
 	BedTypeID *int `json:"bed_type_id,omitempty"`
+}
+
+type bedAdmissionsPaginatedResponse struct {
+	Data       []domain.AdmissionWithDetails `json:"data"`
+	Total      int                           `json:"total"`
+	Page       int                           `json:"page"`
+	Limit      int                           `json:"limit"`
+	TotalPages int                           `json:"total_pages"`
 }
 
 // GET /api/v1/beds
@@ -165,4 +178,85 @@ func (h *BedHandler) GetPatient(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, patient)
+}
+
+// GET /api/v1/beds/{id}/admissions — returns paginated discharged admissions for a bed
+func (h *BedHandler) ListBedAdmissions(w http.ResponseWriter, r *http.Request) {
+	// Parse bed ID from path
+	idStr := chi.URLParam(r, "id")
+	bedID, err := strconv.Atoi(idStr)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid bed id")
+		return
+	}
+
+	// Verify bed exists
+	if _, err := h.bedService.GetBed(r.Context(), bedID); err != nil {
+		writeError(w, http.StatusNotFound, "bed not found")
+		return
+	}
+
+	// Parse query params
+	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 100 {
+		limit = 10
+	}
+
+	var fromTime, toTime *time.Time
+	arLocation, err := time.LoadLocation("America/Argentina/Buenos_Aires")
+	if err != nil {
+		// Fallback to UTC if tzdata is missing (extremely unlikely)
+		arLocation = time.UTC
+	}
+
+	fromStr := r.URL.Query().Get("from")
+	if fromStr != "" {
+		parsed, err := time.Parse("2006-01-02", fromStr)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid date format, use YYYY-MM-DD")
+			return
+		}
+		t := time.Date(parsed.Year(), parsed.Month(), parsed.Day(), 0, 0, 0, 0, arLocation)
+		fromTime = &t
+	}
+
+	toStr := r.URL.Query().Get("to")
+	if toStr != "" {
+		parsed, err := time.Parse("2006-01-02", toStr)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid date format, use YYYY-MM-DD")
+			return
+		}
+		t := time.Date(parsed.Year(), parsed.Month(), parsed.Day(), 23, 59, 59, 999_000_000, arLocation)
+		toTime = &t
+	}
+
+	admissions, total, err := h.admissionService.ListDischargedByBedID(r.Context(), bedID, fromTime, toTime, page, limit)
+	if err != nil {
+		switch err {
+		case domain.ErrInvalidDateRange:
+			writeError(w, http.StatusBadRequest, "from date must not exceed to date")
+		default:
+			writeError(w, http.StatusInternalServerError, "failed to fetch bed history")
+		}
+		return
+	}
+
+	if admissions == nil {
+		admissions = []domain.AdmissionWithDetails{}
+	}
+
+	totalPages := int(math.Ceil(float64(total) / float64(limit)))
+
+	writeJSON(w, http.StatusOK, bedAdmissionsPaginatedResponse{
+		Data:       admissions,
+		Total:      total,
+		Page:       page,
+		Limit:      limit,
+		TotalPages: totalPages,
+	})
 }

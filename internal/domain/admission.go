@@ -37,3 +37,10 @@ type Admission struct {
     CurrentDiagnosisUpdatedBy    *uuid.UUID `json:"current_diagnosis_updated_by"`
     CurrentDiagnosisUpdatedByName string     `json:"current_diagnosis_updated_by_name"`
 }
+
+type AdmissionWithDetails struct {
+    Admission
+    PatientName      string `json:"patient_name"`
+    PatientDNI       string `json:"patient_dni"`
+    ClinicalLogCount int    `json:"clinical_log_count"`
+}

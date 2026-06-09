@@ -47,6 +47,29 @@ func (s *AdmissionService) GetByID(ctx context.Context, id uuid.UUID) (*domain.A
 	return admission, nil
 }
 
+// ListDischargedByBedID returns paginated discharged admissions for a bed with optional date-range filter
+func (s *AdmissionService) ListDischargedByBedID(
+	ctx context.Context,
+	bedID int,
+	from, to *time.Time,
+	page, limit int,
+) ([]domain.AdmissionWithDetails, int, error) {
+	// Validate date range
+	if from != nil && to != nil && from.After(*to) {
+		return nil, 0, domain.ErrInvalidDateRange
+	}
+
+	// Clamp pagination
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 100 {
+		limit = 10
+	}
+
+	return s.admissionRepo.ListDischargedByBedIDWithDetails(ctx, bedID, from, to, page, limit)
+}
+
 // GetByPatientID returns all admissions for a patient
 func (s *AdmissionService) GetByPatientID(ctx context.Context, patientID uuid.UUID) ([]domain.Admission, error) {
 	if _, err := s.patientRepo.GetByID(ctx, patientID); err != nil {
