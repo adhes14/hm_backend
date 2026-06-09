@@ -73,6 +73,31 @@ func RequireRole(roles ...domain.StaffRole) func(http.Handler) http.Handler {
 	}
 }
 
+// passwordChangeWhitelist stores paths that are exempt from RequirePasswordChanged.
+// Use a set (map[string]struct{}) for O(1) lookup.
+var passwordChangeWhitelist = map[string]struct{}{
+	"/api/v1/auth/change-password": {},
+}
+
+// RequirePasswordChanged blocks requests when MustChangePassword is true,
+// unless the request path is in the whitelist (e.g., the change-password endpoint itself).
+// Missing claims defaults to false (safe behavior).
+func RequirePasswordChanged(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		claims := GetUserFromContext(r.Context())
+		if claims != nil && claims.MustChangePassword {
+			if _, ok := passwordChangeWhitelist[r.URL.Path]; !ok {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusForbidden)
+				w.Write([]byte(`{"error":"password_change_required","message":"You must change your password before continuing"}`))
+				return
+			}
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 func GetUserFromContext(ctx context.Context) *auth.Claims {
 	claims, ok := ctx.Value(claimsContextKey).(*auth.Claims)
 	if !ok {

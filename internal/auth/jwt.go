@@ -16,10 +16,11 @@ var (
 )
 
 type Claims struct {
-	StaffID  uuid.UUID        `json:"user_id"`
-	Username string           `json:"username"`
-	Role     domain.StaffRole `json:"role"`
-	FullName string           `json:"full_name"`
+	StaffID            uuid.UUID        `json:"user_id"`
+	Username           string           `json:"username"`
+	Role               domain.StaffRole `json:"role"`
+	FullName           string           `json:"full_name"`
+	MustChangePassword bool             `json:"must_change_password"`
 	jwt.RegisteredClaims
 }
 
@@ -31,17 +32,18 @@ func getSecret() ([]byte, error) {
 	return []byte(secret), nil
 }
 
-func GenerateToken(staffID uuid.UUID, username string, role domain.StaffRole, fullName string) (string, error) {
+func GenerateToken(staffID uuid.UUID, username string, role domain.StaffRole, fullName string, mustChangePassword bool) (string, error) {
 	secret, err := getSecret()
 	if err != nil {
 		return "", err
 	}
 
 	claims := Claims{
-		StaffID:  staffID,
-		Username: username,
-		Role:     role,
-		FullName: fullName,
+		StaffID:            staffID,
+		Username:           username,
+		Role:               role,
+		FullName:           fullName,
+		MustChangePassword: mustChangePassword,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(7 * 24 * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),

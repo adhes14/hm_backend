@@ -119,80 +119,90 @@ func main() {
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.Authenticate)
 
-			r.Post("/auth/sse-ticket", sseHandler.CreateTicket)
+			// Route that must be accessible before password change
+			r.Post("/auth/change-password", authHandler.ChangeMyPassword)
 
-			r.Route("/settings", func(r chi.Router) {
-				r.Get("/", settingsHandler.GetSettings)
-				r.With(middleware.RequireRole(domain.RoleAdmin)).Put("/", settingsHandler.UpdateSettings)
-			})
+			// Routes requiring password to have been changed
+			r.Group(func(r chi.Router) {
+				r.Use(middleware.RequirePasswordChanged)
 
-			r.Route("/beds", func(r chi.Router) {
-				r.Get("/", bedHandler.GetAll)
-				r.Get("/{id}", bedHandler.Get)
-				r.Get("/{id}/patient", bedHandler.GetPatient)
+				r.Post("/auth/sse-ticket", sseHandler.CreateTicket)
 
-				r.Group(func(r chi.Router) {
-					r.Use(middleware.RequireRole(domain.RoleAdmin))
-					r.Post("/", bedHandler.Create)
-					r.Put("/{id}", bedHandler.Update)
-					r.Delete("/{id}", bedHandler.Delete)
+				r.Route("/settings", func(r chi.Router) {
+					r.Get("/", settingsHandler.GetSettings)
+					r.With(middleware.RequireRole(domain.RoleAdmin)).Put("/", settingsHandler.UpdateSettings)
 				})
-			})
 
-			r.Route("/bed-types", func(r chi.Router) {
-				r.Get("/", bedTypeHandler.GetAll)
-				r.Get("/{id}", bedTypeHandler.Get)
+				r.Route("/beds", func(r chi.Router) {
+					r.Get("/", bedHandler.GetAll)
+					r.Get("/{id}", bedHandler.Get)
+					r.Get("/{id}/patient", bedHandler.GetPatient)
 
-				r.Group(func(r chi.Router) {
-					r.Use(middleware.RequireRole(domain.RoleAdmin))
-					r.Post("/", bedTypeHandler.Create)
-					r.Put("/{id}", bedTypeHandler.Update)
-					r.Delete("/{id}", bedTypeHandler.Delete)
+					r.Group(func(r chi.Router) {
+						r.Use(middleware.RequireRole(domain.RoleAdmin))
+						r.Post("/", bedHandler.Create)
+						r.Put("/{id}", bedHandler.Update)
+						r.Delete("/{id}", bedHandler.Delete)
+					})
 				})
-			})
 
-			r.Route("/patients", func(r chi.Router) {
-				r.Get("/", patientHandler.List)
-				r.Post("/", patientHandler.Create)
-				r.Get("/search", patientHandler.Search)
-				r.Get("/{id}", patientHandler.Get)
-				r.Put("/{id}", patientHandler.Update)
-				r.Get("/{id}/admissions", admissionHandler.ListByPatientID)
-			})
+				r.Route("/bed-types", func(r chi.Router) {
+					r.Get("/", bedTypeHandler.GetAll)
+					r.Get("/{id}", bedTypeHandler.Get)
 
-			r.Route("/admissions", func(r chi.Router) {
-				r.Post("/", admissionHandler.Create)
-				r.Get("/{id}", admissionHandler.Get)
-				r.Put("/{id}/discharge", admissionHandler.Discharge)
-				r.Put("/{id}/diagnosis", admissionHandler.UpdateDiagnosis)
-				r.Put("/{id}/event", admissionHandler.RegisterEvent)
-				r.Post("/{id}/clinical-logs", clinicalLogHandler.Create)
-				r.Get("/{id}/clinical-logs", clinicalLogHandler.List)
-				r.Post("/{id}/orders", orderHandler.Create)
-				r.Get("/{id}/orders", orderHandler.ListByAdmission)
-			})
+					r.Group(func(r chi.Router) {
+						r.Use(middleware.RequireRole(domain.RoleAdmin))
+						r.Post("/", bedTypeHandler.Create)
+						r.Put("/{id}", bedTypeHandler.Update)
+						r.Delete("/{id}", bedTypeHandler.Delete)
+					})
+				})
 
-			r.Route("/orders", func(r chi.Router) {
-				r.Get("/pending", orderHandler.ListPending)
-				r.Put("/{id}/status", orderHandler.UpdateStatus)
-				r.With(middleware.RequireRole(domain.RoleAdmin)).Delete("/{id}", orderHandler.Delete)
-			})
+				r.Route("/patients", func(r chi.Router) {
+					r.Get("/", patientHandler.List)
+					r.Post("/", patientHandler.Create)
+					r.Get("/search", patientHandler.Search)
+					r.Get("/{id}", patientHandler.Get)
+					r.Put("/{id}", patientHandler.Update)
+					r.Get("/{id}/admissions", admissionHandler.ListByPatientID)
+				})
 
-			r.Route("/surgical-schedules", func(r chi.Router) {
-				r.Post("/", surgicalScheduleHandler.Create)
-				r.Get("/", surgicalScheduleHandler.ListByMonth)
-				r.Get("/date", surgicalScheduleHandler.ListByDate)
-				r.Get("/patient/{patientId}", surgicalScheduleHandler.GetByPatientID)
-				r.Put("/{id}", surgicalScheduleHandler.Update)
-				r.Delete("/{id}", surgicalScheduleHandler.Delete)
-			})
+				r.Route("/admissions", func(r chi.Router) {
+					r.Post("/", admissionHandler.Create)
+					r.Get("/{id}", admissionHandler.Get)
+					r.Put("/{id}/discharge", admissionHandler.Discharge)
+					r.Put("/{id}/diagnosis", admissionHandler.UpdateDiagnosis)
+					r.Put("/{id}/event", admissionHandler.RegisterEvent)
+					r.Post("/{id}/clinical-logs", clinicalLogHandler.Create)
+					r.Get("/{id}/clinical-logs", clinicalLogHandler.List)
+					r.Post("/{id}/orders", orderHandler.Create)
+					r.Get("/{id}/orders", orderHandler.ListByAdmission)
+				})
 
-			r.Route("/users", func(r chi.Router) {
-				r.Use(middleware.RequireRole(domain.RoleAdmin))
-				r.Get("/", staffHandler.List)
-				r.Post("/", staffHandler.Create)
-				r.Put("/{id}/password", staffHandler.ChangePassword)
-				r.Put("/{id}/active", staffHandler.SetActive)
+				r.Route("/orders", func(r chi.Router) {
+					r.Get("/pending", orderHandler.ListPending)
+					r.Put("/{id}/status", orderHandler.UpdateStatus)
+					r.With(middleware.RequireRole(domain.RoleAdmin)).Delete("/{id}", orderHandler.Delete)
+				})
+
+				r.Route("/surgical-schedules", func(r chi.Router) {
+					r.Post("/", surgicalScheduleHandler.Create)
+					r.Get("/", surgicalScheduleHandler.ListByMonth)
+					r.Get("/date", surgicalScheduleHandler.ListByDate)
+					r.Get("/patient/{patientId}", surgicalScheduleHandler.GetByPatientID)
+					r.Put("/{id}", surgicalScheduleHandler.Update)
+					r.Delete("/{id}", surgicalScheduleHandler.Delete)
+				})
+
+				r.Route("/users", func(r chi.Router) {
+					r.Use(middleware.RequireRole(domain.RoleAdmin))
+					r.Get("/", staffHandler.List)
+					r.Post("/", staffHandler.Create)
+					r.Put("/{id}/password", staffHandler.ChangePassword)
+					r.Put("/{id}/active", staffHandler.SetActive)
+					r.Patch("/{id}", staffHandler.Edit)
+					r.Post("/{id}/reset-password", staffHandler.ResetPassword)
+				})
 			})
 		})
 	})

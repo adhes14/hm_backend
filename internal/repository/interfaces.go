@@ -70,6 +70,10 @@ type StaffRepository interface {
 	GetByUsername(ctx context.Context, username string) (*domain.Staff, error)
 	List(ctx context.Context) ([]domain.Staff, error)
 	UpdatePassword(ctx context.Context, id uuid.UUID, hash string) error
+	UpdateStaff(ctx context.Context, id uuid.UUID, fullName string, role domain.StaffRole) (*domain.Staff, error)
+	CountActiveAdmins(ctx context.Context) (int, error)
+	UpdatePasswordAndClearFlag(ctx context.Context, id uuid.UUID, hash string) error
+	UpdatePasswordAndSetFlag(ctx context.Context, id uuid.UUID, hash string) error
 	SetActive(ctx context.Context, id uuid.UUID, active bool) error
 }
 
