@@ -81,7 +81,7 @@ func (s *AdmissionService) GetByPatientID(ctx context.Context, patientID uuid.UU
 
 // CreateAdmission assigns a patient to an available bed
 // Uses a transaction to ensure atomicity
-func (s *AdmissionService) CreateAdmission(ctx context.Context, patientID uuid.UUID, bedID int, admissionDiagnosis string) (*domain.Admission, error) {
+func (s *AdmissionService) CreateAdmission(ctx context.Context, patientID uuid.UUID, bedID int, admissionDiagnosis string, treatment string) (*domain.Admission, error) {
 	// Verify patient exists
 	if _, err := s.patientRepo.GetByID(ctx, patientID); err != nil {
 		return nil, domain.ErrPatientNotFound
@@ -122,16 +122,17 @@ func (s *AdmissionService) CreateAdmission(ctx context.Context, patientID uuid.U
 		EventType:          domain.EventTypeNinguno,
 		AdmissionDiagnosis: admissionDiagnosis,
 		CurrentDiagnosis:   admissionDiagnosis,
+		Treatment:          treatment,
 	}
 
 	// Insert admission within transaction
 	insertQuery := `
-		INSERT INTO admissions (patient_id, bed_id, status, event_type, admission_diagnosis, current_diagnosis)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO admissions (patient_id, bed_id, status, event_type, admission_diagnosis, current_diagnosis, treatment)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id, created_at`
 
 	err = tx.QueryRow(ctx, insertQuery,
-		admission.PatientID, admission.BedID, admission.Status, admission.EventType, admission.AdmissionDiagnosis, admission.CurrentDiagnosis,
+		admission.PatientID, admission.BedID, admission.Status, admission.EventType, admission.AdmissionDiagnosis, admission.CurrentDiagnosis, admission.Treatment,
 	).Scan(&admission.ID, &admission.CreatedAt)
 	if err != nil {
 		return nil, err
@@ -333,5 +334,28 @@ func (s *AdmissionService) UpdateDiagnosis(ctx context.Context, admissionID uuid
 	}
 
 	// Return updated admission (with editor name joined)
+	return s.admissionRepo.GetByID(ctx, admissionID)
+}
+
+// UpdateTreatment updates the treatment of an active admission
+func (s *AdmissionService) UpdateTreatment(ctx context.Context, admissionID uuid.UUID, treatment string) (*domain.Admission, error) {
+	// Verify admission exists
+	admission, err := s.admissionRepo.GetByID(ctx, admissionID)
+	if err != nil {
+		return nil, domain.ErrAdmissionNotFound
+	}
+
+	// Verify admission is active
+	if admission.Status != domain.AdmissionStatusActive {
+		return nil, domain.ErrAdmissionNotActive
+	}
+
+	// Update in database
+	err = s.admissionRepo.UpdateTreatment(ctx, admissionID, treatment)
+	if err != nil {
+		return nil, err
+	}
+
+	// Return updated admission
 	return s.admissionRepo.GetByID(ctx, admissionID)
 }

@@ -47,15 +47,17 @@ type AdmissionRepository interface {
 	GetByIDForUpdate(ctx context.Context, tx pgx.Tx, id uuid.UUID) (*domain.Admission, error)
 	GetByBedID(ctx context.Context, bedID int) (*domain.Admission, error)
 	UpdateDiagnosis(ctx context.Context, id uuid.UUID, diagnosis string, updatedBy uuid.UUID) error
+	UpdateTreatment(ctx context.Context, id uuid.UUID, treatment string) error
 	GetAllByPatientID(ctx context.Context, patientID uuid.UUID) ([]domain.Admission, error)
 	ListDischargedByBedIDWithDetails(ctx context.Context, bedID int, from, to *time.Time, page, limit int) ([]domain.AdmissionWithDetails, int, error)
 }
 
 type AuxiliaryOrderRepository interface {
 	Create(ctx context.Context, order *domain.AuxiliaryOrder) error
+	GetByID(ctx context.Context, id int64) (*domain.AuxiliaryOrder, error)
 	GetByAdmission(ctx context.Context, admissionID uuid.UUID) ([]domain.AuxiliaryOrder, error)
 	GetAllPending(ctx context.Context) ([]domain.AuxiliaryOrder, error)
-	UpdateStatus(ctx context.Context, id int64, status domain.OrderStatus, updatedBy *uuid.UUID) error
+	UpdateStatus(ctx context.Context, id int64, status domain.OrderStatus, result string, updatedBy *uuid.UUID) error
 	Delete(ctx context.Context, id int64) error
 }
 

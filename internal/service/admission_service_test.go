@@ -40,6 +40,9 @@ func (m *mockAdmissionRepo) GetByBedID(ctx context.Context, bedID int) (*domain.
 func (m *mockAdmissionRepo) UpdateDiagnosis(ctx context.Context, id uuid.UUID, diagnosis string, updatedBy uuid.UUID) error {
 	return nil
 }
+func (m *mockAdmissionRepo) UpdateTreatment(ctx context.Context, id uuid.UUID, treatment string) error {
+	return nil
+}
 func (m *mockAdmissionRepo) GetAllByPatientID(ctx context.Context, patientID uuid.UUID) ([]domain.Admission, error) {
 	return nil, nil
 }

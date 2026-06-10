@@ -1,0 +1,2 @@
+ALTER TABLE admissions ADD COLUMN treatment TEXT NOT NULL DEFAULT '';
+ALTER TABLE auxiliary_orders ADD COLUMN result TEXT NOT NULL DEFAULT '';

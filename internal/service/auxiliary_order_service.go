@@ -53,9 +53,29 @@ func (s *AuxiliaryOrderService) ListPending(ctx context.Context) ([]domain.Auxil
 	return s.repo.GetAllPending(ctx)
 }
 
-func (s *AuxiliaryOrderService) UpdateStatus(ctx context.Context, id int64, status domain.OrderStatus, staffID *uuid.UUID) error {
-	// Simple validation, assuming the frontend restricts the flow
-	err := s.repo.UpdateStatus(ctx, id, status, staffID)
+func (s *AuxiliaryOrderService) UpdateStatus(ctx context.Context, id int64, status domain.OrderStatus, result string, staffID *uuid.UUID) error {
+	order, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	// Validate status transition
+	// Pending -> Done -> Reported
+	var valid bool
+	switch order.Status {
+	case domain.OrderStatusPending:
+		valid = (status == domain.OrderStatusDone)
+	case domain.OrderStatusDone:
+		valid = (status == domain.OrderStatusReported)
+	default:
+		valid = false
+	}
+
+	if !valid {
+		return domain.ErrInvalidStatusTransition
+	}
+
+	err = s.repo.UpdateStatus(ctx, id, status, result, staffID)
 	if err != nil {
 		return err
 	}

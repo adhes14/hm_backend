@@ -92,6 +92,9 @@ func (r *stubAdmissionRepo) GetByBedID(ctx context.Context, bedID int) (*domain.
 func (r *stubAdmissionRepo) UpdateDiagnosis(ctx context.Context, id uuid.UUID, diagnosis string, updatedBy uuid.UUID) error {
 	return nil
 }
+func (r *stubAdmissionRepo) UpdateTreatment(ctx context.Context, id uuid.UUID, treatment string) error {
+	return nil
+}
 func (r *stubAdmissionRepo) GetAllByPatientID(ctx context.Context, patientID uuid.UUID) ([]domain.Admission, error) {
 	return nil, nil
 }

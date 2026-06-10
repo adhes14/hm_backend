@@ -171,8 +171,9 @@ func main() {
 				r.Route("/admissions", func(r chi.Router) {
 					r.Post("/", admissionHandler.Create)
 					r.Get("/{id}", admissionHandler.Get)
-					r.Put("/{id}/discharge", admissionHandler.Discharge)
+ 					r.Put("/{id}/discharge", admissionHandler.Discharge)
 					r.Put("/{id}/diagnosis", admissionHandler.UpdateDiagnosis)
+					r.Put("/{id}/treatment", admissionHandler.UpdateTreatment)
 					r.Put("/{id}/event", admissionHandler.RegisterEvent)
 					r.Post("/{id}/clinical-logs", clinicalLogHandler.Create)
 					r.Get("/{id}/clinical-logs", clinicalLogHandler.List)

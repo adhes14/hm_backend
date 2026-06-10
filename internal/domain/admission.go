@@ -34,6 +34,7 @@ type Admission struct {
     DischargedAt         *time.Time      `json:"discharged_at"`
     AdmissionDiagnosis           string     `json:"admission_diagnosis"`
     CurrentDiagnosis             string     `json:"current_diagnosis"`
+    Treatment                    string     `json:"treatment"`
     CurrentDiagnosisUpdatedBy    *uuid.UUID `json:"current_diagnosis_updated_by"`
     CurrentDiagnosisUpdatedByName string     `json:"current_diagnosis_updated_by_name"`
 }

@@ -86,6 +86,7 @@ func (h *AuxiliaryOrderHandler) ListPending(w http.ResponseWriter, r *http.Reque
 
 type UpdateOrderStatusRequest struct {
 	Status string `json:"status"`
+	Result string `json:"result"`
 }
 
 func (h *AuxiliaryOrderHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
@@ -104,10 +105,12 @@ func (h *AuxiliaryOrderHandler) UpdateStatus(w http.ResponseWriter, r *http.Requ
 	claims := middleware.GetUserFromContext(r.Context())
 	staffID := claims.StaffID
 
-	err = h.service.UpdateStatus(r.Context(), orderID, domain.OrderStatus(req.Status), &staffID)
+	err = h.service.UpdateStatus(r.Context(), orderID, domain.OrderStatus(req.Status), req.Result, &staffID)
 	if err != nil {
 		if err == domain.ErrOrderNotFound {
 			writeError(w, http.StatusNotFound, err.Error())
+		} else if err == domain.ErrInvalidStatusTransition {
+			writeError(w, http.StatusBadRequest, err.Error())
 		} else {
 			writeError(w, http.StatusInternalServerError, err.Error())
 		}

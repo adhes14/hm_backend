@@ -25,6 +25,7 @@ type AuxiliaryOrder struct {
 	Category      OrderCategory `json:"category"`
 	Description   string        `json:"description"`
 	Status        OrderStatus   `json:"status"`
+	Result        string        `json:"result"`
 	CreatedBy     *uuid.UUID    `json:"created_by"`
 	CreatedByName string        `json:"created_by_name,omitempty"` // From JOIN
 	UpdatedBy     *uuid.UUID    `json:"updated_by"`

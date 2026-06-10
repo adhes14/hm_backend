@@ -22,12 +22,12 @@ func NewAdmissionRepository(pool *pgxpool.Pool) AdmissionRepository {
 
 func (r *admissionRepo) Create(ctx context.Context, a *domain.Admission) error {
 	query := `
-		INSERT INTO admissions (patient_id, bed_id, status, event_type, admission_diagnosis, current_diagnosis)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO admissions (patient_id, bed_id, status, event_type, admission_diagnosis, current_diagnosis, treatment)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id, created_at`
 
 	return r.pool.QueryRow(ctx, query,
-		a.PatientID, a.BedID, a.Status, a.EventType, a.AdmissionDiagnosis, a.CurrentDiagnosis,
+		a.PatientID, a.BedID, a.Status, a.EventType, a.AdmissionDiagnosis, a.CurrentDiagnosis, a.Treatment,
 	).Scan(&a.ID, &a.CreatedAt)
 }
 
@@ -35,7 +35,7 @@ func (r *admissionRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Admi
 	query := `
 		SELECT a.id, a.patient_id, a.bed_id, a.status, a.event_type, a.event_at,
 		       a.next_control_at, a.estimated_discharge_at, a.created_at, a.discharged_at,
-		       a.admission_diagnosis, a.current_diagnosis, a.current_diagnosis_updated_by,
+		       a.admission_diagnosis, a.current_diagnosis, a.treatment, a.current_diagnosis_updated_by,
 		       COALESCE(s.full_name, '') as current_diagnosis_updated_by_name
 		FROM admissions a
 		LEFT JOIN staff s ON a.current_diagnosis_updated_by = s.id
@@ -45,7 +45,7 @@ func (r *admissionRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Admi
 	err := r.pool.QueryRow(ctx, query, id).Scan(
 		&a.ID, &a.PatientID, &a.BedID, &a.Status, &a.EventType,
 		&a.EventAt, &a.NextControlAt, &a.EstimatedDischargeAt,
-		&a.CreatedAt, &a.DischargedAt, &a.AdmissionDiagnosis, &a.CurrentDiagnosis,
+		&a.CreatedAt, &a.DischargedAt, &a.AdmissionDiagnosis, &a.CurrentDiagnosis, &a.Treatment,
 		&a.CurrentDiagnosisUpdatedBy, &a.CurrentDiagnosisUpdatedByName)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -60,7 +60,7 @@ func (r *admissionRepo) GetActiveByBedID(ctx context.Context, bedID int) (*domai
 	query := `
 		SELECT a.id, a.patient_id, a.bed_id, a.status, a.event_type, a.event_at,
 		       a.next_control_at, a.estimated_discharge_at, a.created_at, a.discharged_at,
-		       a.admission_diagnosis, a.current_diagnosis, a.current_diagnosis_updated_by,
+		       a.admission_diagnosis, a.current_diagnosis, a.treatment, a.current_diagnosis_updated_by,
 		       COALESCE(s.full_name, '') as current_diagnosis_updated_by_name
 		FROM admissions a
 		LEFT JOIN staff s ON a.current_diagnosis_updated_by = s.id
@@ -70,7 +70,7 @@ func (r *admissionRepo) GetActiveByBedID(ctx context.Context, bedID int) (*domai
 	err := r.pool.QueryRow(ctx, query, bedID).Scan(
 		&a.ID, &a.PatientID, &a.BedID, &a.Status, &a.EventType,
 		&a.EventAt, &a.NextControlAt, &a.EstimatedDischargeAt,
-		&a.CreatedAt, &a.DischargedAt, &a.AdmissionDiagnosis, &a.CurrentDiagnosis,
+		&a.CreatedAt, &a.DischargedAt, &a.AdmissionDiagnosis, &a.CurrentDiagnosis, &a.Treatment,
 		&a.CurrentDiagnosisUpdatedBy, &a.CurrentDiagnosisUpdatedByName)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -85,7 +85,7 @@ func (r *admissionRepo) GetActiveByPatientID(ctx context.Context, patientID uuid
 	query := `
 		SELECT a.id, a.patient_id, a.bed_id, a.status, a.event_type, a.event_at,
 		       a.next_control_at, a.estimated_discharge_at, a.created_at, a.discharged_at,
-		       a.admission_diagnosis, a.current_diagnosis, a.current_diagnosis_updated_by,
+		       a.admission_diagnosis, a.current_diagnosis, a.treatment, a.current_diagnosis_updated_by,
 		       COALESCE(s.full_name, '') as current_diagnosis_updated_by_name
 		FROM admissions a
 		LEFT JOIN staff s ON a.current_diagnosis_updated_by = s.id
@@ -95,7 +95,7 @@ func (r *admissionRepo) GetActiveByPatientID(ctx context.Context, patientID uuid
 	err := r.pool.QueryRow(ctx, query, patientID).Scan(
 		&a.ID, &a.PatientID, &a.BedID, &a.Status, &a.EventType,
 		&a.EventAt, &a.NextControlAt, &a.EstimatedDischargeAt,
-		&a.CreatedAt, &a.DischargedAt, &a.AdmissionDiagnosis, &a.CurrentDiagnosis,
+		&a.CreatedAt, &a.DischargedAt, &a.AdmissionDiagnosis, &a.CurrentDiagnosis, &a.Treatment,
 		&a.CurrentDiagnosisUpdatedBy, &a.CurrentDiagnosisUpdatedByName)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -136,11 +136,27 @@ func (r *admissionRepo) UpdateDiagnosis(ctx context.Context, id uuid.UUID, diagn
 	return nil
 }
 
+func (r *admissionRepo) UpdateTreatment(ctx context.Context, id uuid.UUID, treatment string) error {
+	query := `
+		UPDATE admissions
+		SET treatment = $1
+		WHERE id = $2 AND status = 'active'`
+
+	tag, err := r.pool.Exec(ctx, query, treatment, id)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.ErrAdmissionNotActive
+	}
+	return nil
+}
+
 func (r *admissionRepo) GetByIDForUpdate(ctx context.Context, tx pgx.Tx, id uuid.UUID) (*domain.Admission, error) {
 	query := `
 		SELECT a.id, a.patient_id, a.bed_id, a.status, a.event_type, a.event_at,
 		       a.next_control_at, a.estimated_discharge_at, a.created_at, a.discharged_at,
-		       a.admission_diagnosis, a.current_diagnosis, a.current_diagnosis_updated_by,
+		       a.admission_diagnosis, a.current_diagnosis, a.treatment, a.current_diagnosis_updated_by,
 		       COALESCE(s.full_name, '') as current_diagnosis_updated_by_name
 		FROM admissions a
 		LEFT JOIN staff s ON a.current_diagnosis_updated_by = s.id
@@ -150,7 +166,7 @@ func (r *admissionRepo) GetByIDForUpdate(ctx context.Context, tx pgx.Tx, id uuid
 	err := tx.QueryRow(ctx, query, id).Scan(
 		&a.ID, &a.PatientID, &a.BedID, &a.Status, &a.EventType,
 		&a.EventAt, &a.NextControlAt, &a.EstimatedDischargeAt,
-		&a.CreatedAt, &a.DischargedAt, &a.AdmissionDiagnosis, &a.CurrentDiagnosis,
+		&a.CreatedAt, &a.DischargedAt, &a.AdmissionDiagnosis, &a.CurrentDiagnosis, &a.Treatment,
 		&a.CurrentDiagnosisUpdatedBy, &a.CurrentDiagnosisUpdatedByName)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -165,7 +181,7 @@ func (r *admissionRepo) GetByBedID(ctx context.Context, bedID int) (*domain.Admi
 	query := `
 		SELECT a.id, a.patient_id, a.bed_id, a.status, a.event_type, a.event_at,
 		       a.next_control_at, a.estimated_discharge_at, a.created_at, a.discharged_at,
-		       a.admission_diagnosis, a.current_diagnosis, a.current_diagnosis_updated_by,
+		       a.admission_diagnosis, a.current_diagnosis, a.treatment, a.current_diagnosis_updated_by,
 		       COALESCE(s.full_name, '') as current_diagnosis_updated_by_name
 		FROM admissions a
 		LEFT JOIN staff s ON a.current_diagnosis_updated_by = s.id
@@ -175,7 +191,7 @@ func (r *admissionRepo) GetByBedID(ctx context.Context, bedID int) (*domain.Admi
 	err := r.pool.QueryRow(ctx, query, bedID).Scan(
 		&a.ID, &a.PatientID, &a.BedID, &a.Status, &a.EventType,
 		&a.EventAt, &a.NextControlAt, &a.EstimatedDischargeAt,
-		&a.CreatedAt, &a.DischargedAt, &a.AdmissionDiagnosis, &a.CurrentDiagnosis,
+		&a.CreatedAt, &a.DischargedAt, &a.AdmissionDiagnosis, &a.CurrentDiagnosis, &a.Treatment,
 		&a.CurrentDiagnosisUpdatedBy, &a.CurrentDiagnosisUpdatedByName)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -190,7 +206,7 @@ func (r *admissionRepo) GetAllByPatientID(ctx context.Context, patientID uuid.UU
 	query := `
 		SELECT a.id, a.patient_id, a.bed_id, a.status, a.event_type, a.event_at,
 		       a.next_control_at, a.estimated_discharge_at, a.created_at, a.discharged_at,
-		       a.admission_diagnosis, a.current_diagnosis, a.current_diagnosis_updated_by,
+		       a.admission_diagnosis, a.current_diagnosis, a.treatment, a.current_diagnosis_updated_by,
 		       COALESCE(s.full_name, '') as current_diagnosis_updated_by_name
 		FROM admissions a
 		LEFT JOIN staff s ON a.current_diagnosis_updated_by = s.id
@@ -209,7 +225,7 @@ func (r *admissionRepo) GetAllByPatientID(ctx context.Context, patientID uuid.UU
 		err := rows.Scan(
 			&a.ID, &a.PatientID, &a.BedID, &a.Status, &a.EventType,
 			&a.EventAt, &a.NextControlAt, &a.EstimatedDischargeAt,
-			&a.CreatedAt, &a.DischargedAt, &a.AdmissionDiagnosis, &a.CurrentDiagnosis,
+			&a.CreatedAt, &a.DischargedAt, &a.AdmissionDiagnosis, &a.CurrentDiagnosis, &a.Treatment,
 			&a.CurrentDiagnosisUpdatedBy, &a.CurrentDiagnosisUpdatedByName)
 		if err != nil {
 			return nil, err
@@ -261,7 +277,7 @@ func (r *admissionRepo) ListDischargedByBedIDWithDetails(
 	dataQuery := fmt.Sprintf(`
 		SELECT a.id, a.patient_id, a.bed_id, a.status, a.event_type, a.event_at,
 		       a.next_control_at, a.estimated_discharge_at, a.created_at, a.discharged_at,
-		       a.admission_diagnosis, a.current_diagnosis, a.current_diagnosis_updated_by,
+		       a.admission_diagnosis, a.current_diagnosis, a.treatment, a.current_diagnosis_updated_by,
 		       COALESCE(s.full_name, '') as current_diagnosis_updated_by_name,
 		       COALESCE(p.full_name, '') as patient_name,
 		       COALESCE(p.identity_number, '') as patient_dni,
@@ -287,7 +303,7 @@ func (r *admissionRepo) ListDischargedByBedIDWithDetails(
 		err := rows.Scan(
 			&a.ID, &a.PatientID, &a.BedID, &a.Status, &a.EventType,
 			&a.EventAt, &a.NextControlAt, &a.EstimatedDischargeAt,
-			&a.CreatedAt, &a.DischargedAt, &a.AdmissionDiagnosis, &a.CurrentDiagnosis,
+			&a.CreatedAt, &a.DischargedAt, &a.AdmissionDiagnosis, &a.CurrentDiagnosis, &a.Treatment,
 			&a.CurrentDiagnosisUpdatedBy, &a.CurrentDiagnosisUpdatedByName,
 			&a.PatientName, &a.PatientDNI, &a.ClinicalLogCount)
 		if err != nil {

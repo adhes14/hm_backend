@@ -23,10 +23,15 @@ type createAdmissionRequest struct {
 	PatientID          string `json:"patient_id"`
 	BedID              int    `json:"bed_id"`
 	AdmissionDiagnosis string `json:"admission_diagnosis"`
+	Treatment          string `json:"treatment"`
 }
 
 type updateDiagnosisRequest struct {
 	CurrentDiagnosis string `json:"current_diagnosis"`
+}
+
+type updateTreatmentRequest struct {
+	Treatment string `json:"treatment"`
 }
 
 // POST /api/v1/admissions
@@ -43,7 +48,7 @@ func (h *AdmissionHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	admission, err := h.admissionService.CreateAdmission(r.Context(), patientID, req.BedID, req.AdmissionDiagnosis)
+	admission, err := h.admissionService.CreateAdmission(r.Context(), patientID, req.BedID, req.AdmissionDiagnosis, req.Treatment)
 	if err != nil {
 		switch err {
 		case domain.ErrPatientNotFound:
@@ -114,6 +119,37 @@ func (h *AdmissionHandler) UpdateDiagnosis(w http.ResponseWriter, r *http.Reques
 			writeError(w, http.StatusConflict, "admission is not active")
 		default:
 			writeError(w, http.StatusInternalServerError, "failed to update diagnosis")
+		}
+		return
+	}
+
+	writeJSON(w, http.StatusOK, admission)
+}
+
+// PUT /api/v1/admissions/{id}/treatment
+func (h *AdmissionHandler) UpdateTreatment(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid admission id")
+		return
+	}
+
+	var req updateTreatmentRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	admission, err := h.admissionService.UpdateTreatment(r.Context(), id, req.Treatment)
+	if err != nil {
+		switch err {
+		case domain.ErrAdmissionNotFound:
+			writeError(w, http.StatusNotFound, "admission not found")
+		case domain.ErrAdmissionNotActive:
+			writeError(w, http.StatusConflict, "admission is not active")
+		default:
+			writeError(w, http.StatusInternalServerError, "failed to update treatment")
 		}
 		return
 	}
