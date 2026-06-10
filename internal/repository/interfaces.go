@@ -18,6 +18,7 @@ type BedRepository interface {
 	UpdateBed(ctx context.Context, bed *domain.Bed) error
 	DeleteBed(ctx context.Context, id int) error
 	CountByBedTypeID(ctx context.Context, bedTypeID int) (int, error)
+	CountByWardID(ctx context.Context, wardID int) (int, error)
 }
 
 type BedTypeRepository interface {
@@ -25,6 +26,15 @@ type BedTypeRepository interface {
 	GetByID(ctx context.Context, id int) (*domain.BedType, error)
 	GetAll(ctx context.Context) ([]domain.BedType, error)
 	Update(ctx context.Context, bt *domain.BedType) error
+	Delete(ctx context.Context, id int) error
+	CountByID(ctx context.Context, id int) (int, error)
+}
+
+type WardRepository interface {
+	Create(ctx context.Context, w *domain.Ward) error
+	GetByID(ctx context.Context, id int) (*domain.Ward, error)
+	GetAll(ctx context.Context) ([]domain.Ward, error)
+	Update(ctx context.Context, w *domain.Ward) error
 	Delete(ctx context.Context, id int) error
 	CountByID(ctx context.Context, id int) (int, error)
 }

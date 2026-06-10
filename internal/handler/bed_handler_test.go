@@ -66,6 +66,7 @@ func (r *stubBedRepo) CreateBed(ctx context.Context, bed *domain.Bed) error     
 func (r *stubBedRepo) UpdateBed(ctx context.Context, bed *domain.Bed) error              { return nil }
 func (r *stubBedRepo) DeleteBed(ctx context.Context, id int) error                       { return nil }
 func (r *stubBedRepo) CountByBedTypeID(ctx context.Context, bedTypeID int) (int, error)  { return 0, nil }
+func (r *stubBedRepo) CountByWardID(ctx context.Context, wardID int) (int, error)     { return 0, nil }
 
 var _ repository.BedRepository = (*stubBedRepo)(nil)
 

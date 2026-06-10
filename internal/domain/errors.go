@@ -23,5 +23,8 @@ var (
 	ErrScheduleNotFound       = errors.New("surgical schedule not found")
 	ErrPatientAlreadyScheduled = errors.New("patient already has a surgical schedule")
 	ErrInvalidDateRange        = errors.New("from date must not exceed to date")
+	ErrWardNotEmpty            = errors.New("ward has assigned beds")
+	ErrWardNotFound            = errors.New("ward not found")
 )
+
 

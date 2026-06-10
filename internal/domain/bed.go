@@ -17,6 +17,8 @@ type Bed struct {
 	EstimatedDischargeAt *time.Time `json:"estimated_discharge_at,omitempty"`
 	EventType            *EventType `json:"event_type,omitempty"`
 	ControlCount         int        `json:"control_count"`
+	WardID               int        `json:"ward_id"`
+	Ward                 *Ward      `json:"ward,omitempty"`
 }
 
 // IsAvailable returns true if the bed has no active admission

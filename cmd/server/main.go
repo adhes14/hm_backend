@@ -33,6 +33,7 @@ func main() {
 
 	// Repositories
 	bedRepo := repository.NewBedRepository(pool)
+	wardRepo := repository.NewWardRepository(pool)
 	bedTypeRepo := repository.NewBedTypeRepository(pool)
 	patientRepo := repository.NewPatientRepository(pool)
 	admissionRepo := repository.NewAdmissionRepository(pool)
@@ -46,6 +47,7 @@ func main() {
 	// Services
 	sseService := service.NewSSEService(pool, sseTicketRepo, settingsRepo)
 	bedService := service.NewBedService(bedRepo, patientRepo, admissionRepo)
+	wardService := service.NewWardService(wardRepo, bedRepo)
 	bedTypeService := service.NewBedTypeService(bedTypeRepo)
 	patientService := service.NewPatientService(patientRepo)
 	admissionService := service.NewAdmissionService(pool, admissionRepo, bedRepo, patientRepo, surgicalScheduleRepo, sseService)
@@ -61,6 +63,7 @@ func main() {
 
 	// Handlers
 	bedHandler := handler.NewBedHandler(bedService, admissionService)
+	wardHandler := handler.NewWardHandler(wardService)
 	bedTypeHandler := handler.NewBedTypeHandler(bedTypeService)
 	patientHandler := handler.NewPatientHandler(patientService)
 	admissionHandler := handler.NewAdmissionHandler(admissionService)
@@ -144,6 +147,18 @@ func main() {
 						r.Post("/", bedHandler.Create)
 						r.Put("/{id}", bedHandler.Update)
 						r.Delete("/{id}", bedHandler.Delete)
+					})
+				})
+
+				r.Route("/wards", func(r chi.Router) {
+					r.Get("/", wardHandler.GetAll)
+					r.Get("/{id}", wardHandler.Get)
+
+					r.Group(func(r chi.Router) {
+						r.Use(middleware.RequireRole(domain.RoleAdmin))
+						r.Post("/", wardHandler.Create)
+						r.Put("/{id}", wardHandler.Update)
+						r.Delete("/{id}", wardHandler.Delete)
 					})
 				})
 

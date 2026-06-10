@@ -27,11 +27,13 @@ type createBedRequest struct {
 	Number     int `json:"number"`
 	BedTypeID  int `json:"bed_type_id"`
 	IsActive   bool `json:"is_active"`
+	WardID     int `json:"ward_id"`
 }
 
 type updateBedRequest struct {
 	Number    *int `json:"number,omitempty"`
 	BedTypeID *int `json:"bed_type_id,omitempty"`
+	WardID    *int `json:"ward_id,omitempty"`
 }
 
 type bedAdmissionsPaginatedResponse struct {
@@ -79,14 +81,15 @@ func (h *BedHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Number <= 0 || req.BedTypeID <= 0 {
-		writeError(w, http.StatusBadRequest, "number and bed_type_id are required")
+	if req.Number <= 0 || req.BedTypeID <= 0 || req.WardID <= 0 {
+		writeError(w, http.StatusBadRequest, "number, bed_type_id, and ward_id are required")
 		return
 	}
 
 	bed := &domain.Bed{
 		Number:   req.Number,
 		IsActive: req.IsActive,
+		WardID:   req.WardID,
 	}
 	bed.BedType = &domain.BedType{ID: req.BedTypeID}
 
@@ -124,6 +127,9 @@ func (h *BedHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.BedTypeID != nil {
 		bed.BedType.ID = *req.BedTypeID
+	}
+	if req.WardID != nil {
+		bed.WardID = *req.WardID
 	}
 
 	if err := h.bedService.UpdateBed(r.Context(), bed); err != nil {
